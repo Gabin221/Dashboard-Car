@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#121212">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ma 206+"
+        android:textColor="#FFFFFF"
+        android:textSize="34sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="48dp"/>
+
+    <Button
+        android:id="@+id/btn_drive"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="🚗  Mode Conduite"
+        android:textSize="20sp"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_maintenance"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="🔧  Entretien"
+        android:textSize="20sp"
+        android:backgroundTint="#FF9800"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btn_profile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mon Profil Conducteur"
+        android:backgroundTint="#555555"/>
+
+</LinearLayout>

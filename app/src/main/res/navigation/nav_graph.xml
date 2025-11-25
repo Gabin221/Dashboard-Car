@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment"> <fragment
+    android:id="@+id/homeFragment"
+    android:name="com.example.dashboard.ui.HomeFragment"
+    android:label="Accueil"
+    tools:layout="@layout/fragment_home">
+
+    <action
+        android:id="@+id/action_home_to_dashboard"
+        app:destination="@id/dashboardFragment" />
+    <action
+        android:id="@+id/action_home_to_maintenance"
+        app:destination="@id/maintenanceFragment" />
+</fragment>
+
+    <fragment
+        android:id="@+id/dashboardFragment"
+        android:name="com.example.dashboard.ui.DashboardFragment"
+        android:label="Conduite"
+        tools:layout="@layout/fragment_dashboard" />
+
+    <fragment
+        android:id="@+id/maintenanceFragment"
+        android:name="com.example.dashboard.ui.MaintenanceFragment"
+        android:label="Entretien"
+        tools:layout="@layout/fragment_maintenance" />
+
+</navigation>
