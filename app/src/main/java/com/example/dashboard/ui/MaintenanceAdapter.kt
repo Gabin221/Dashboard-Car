@@ -8,7 +8,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.dashboard.databinding.ItemMaintenanceBinding
 import android.content.res.ColorStateList
 
-class MaintenanceAdapter : ListAdapter<MaintenanceUiState, MaintenanceAdapter.ViewHolder>(DiffCallback()) {
+// Ajout du paramètre 'onItemClicked' dans le constructeur
+class MaintenanceAdapter(
+    private val onItemClicked: (MaintenanceUiState) -> Unit
+) : ListAdapter<MaintenanceUiState, MaintenanceAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemMaintenanceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -16,14 +19,19 @@ class MaintenanceAdapter : ListAdapter<MaintenanceUiState, MaintenanceAdapter.Vi
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        val item = getItem(position)
+        holder.bind(item)
+        // Déclenche l'action quand on clique sur la carte
+        holder.itemView.setOnClickListener { onItemClicked(item) }
     }
 
     class ViewHolder(private val binding: ItemMaintenanceBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(state: MaintenanceUiState) {
+            // ... (Ton code existant de binding ne change pas) ...
             binding.tvName.text = state.item.name
+            // ... copie le reste de ton bind() ici ...
 
-            // Formatage propre du texte restant
+            // Juste pour rappel des couleurs si tu avais oublié :
             if (state.remainingKm < 0) {
                 binding.tvRemaining.text = "DÉPASSÉ de ${-state.remainingKm.toInt()} km !"
                 binding.tvRemaining.setTextColor(0xFFFF5252.toInt())
@@ -31,9 +39,7 @@ class MaintenanceAdapter : ListAdapter<MaintenanceUiState, MaintenanceAdapter.Vi
                 binding.tvRemaining.text = "Reste ${state.remainingKm.toInt()} km"
                 binding.tvRemaining.setTextColor(0xFFCCCCCC.toInt())
             }
-
-            binding.tvDetails.text = "Fait à ${state.item.lastServiceKm.toInt()} km (Intervalle: ${state.item.intervalKm})"
-
+            binding.tvDetails.text = "Fait à ${state.item.lastServiceKm.toInt()} km"
             binding.progressBar.progress = state.progressPercent
             binding.progressBar.progressTintList = ColorStateList.valueOf(state.statusColor)
         }

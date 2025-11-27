@@ -28,64 +28,84 @@ class MaintenanceFragment : Fragment() {
         return binding.root
     }
 
+    // Dans onViewCreated
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Setup Liste
-        val adapter = MaintenanceAdapter()
+        // On passe la fonction qui gère le clic
+        val adapter = MaintenanceAdapter { selectedState ->
+            showMaintenanceDialog(selectedState.item) // On ouvre le dialogue avec l'item existant
+        }
+
         binding.rvMaintenance.adapter = adapter
         binding.rvMaintenance.layoutManager = LinearLayoutManager(context)
 
-        // Observer les données
-        lifecycleScope.launch {
-            viewModel.maintenanceListState.collect { list ->
-                adapter.submitList(list)
-            }
-        }
+        // ... observers ...
 
-        // Clic sur le bouton +
         binding.fabAdd.setOnClickListener {
-            showAddDialog()
+            showMaintenanceDialog(null) // null = On crée un nouveau
         }
     }
 
-    // Petite modale rapide pour ajouter un élément (En attendant un écran dédié)
-    private fun showAddDialog() {
+    // Fonction unifiée pour Créer OU Modifier
+    private fun showMaintenanceDialog(itemToEdit: com.example.dashboard.data.MaintenanceItem?) {
         val context = requireContext()
         val layout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(50, 40, 50, 10)
         }
 
-        val inputName = EditText(context).apply { hint = "Nom (ex: Pneus)" }
+        val inputName = EditText(context).apply {
+            hint = "Nom (ex: Pneus)"
+            setText(itemToEdit?.name ?: "Pneus") // Pré-remplir si modif
+        }
         val inputInterval = EditText(context).apply {
-            hint = "Intervalle KM (ex: 40000)"
+            hint = "Intervalle KM"
             inputType = InputType.TYPE_CLASS_NUMBER
+            setText(itemToEdit?.intervalKm?.toString() ?: "10000")
         }
         val inputLastKm = EditText(context).apply {
-            hint = "Fait à quel KM total ? (ex: 120000)"
+            hint = "Fait à quel KM total ?"
             inputType = InputType.TYPE_CLASS_NUMBER
+            setText(itemToEdit?.lastServiceKm?.toString() ?: "110000")
         }
 
         layout.addView(inputName)
         layout.addView(inputInterval)
         layout.addView(inputLastKm)
 
-        AlertDialog.Builder(context)
-            .setTitle("Nouvel Entretien")
-            .setView(layout)
-            .setPositiveButton("Ajouter") { _, _ ->
-                val name = inputName.text.toString()
-                val interval = inputInterval.text.toString().toIntOrNull() ?: 30000
-                val lastKm = inputLastKm.text.toString().toDoubleOrNull() ?: 0.0
+        val title = if (itemToEdit == null) "Nouvel Entretien" else "Modifier Entretien"
 
-                // Sauvegarde via ViewModel
-                viewModel.addOrUpdateItem(name, interval, lastKm, warning = 2000)
+        AlertDialog.Builder(context)
+            .setTitle(title)
+            .setView(layout)
+            .setPositiveButton("Enregistrer") { _, _ ->
+                // Récupération des valeurs
+                val name = inputName.text.toString().trim()
+                val intervalStr = inputInterval.text.toString().trim()
+                val lastKmStr = inputLastKm.text.toString().trim()
+
+                // --- CORRECTION : Validation des données ---
+                if (name.isEmpty()) {
+                    android.widget.Toast.makeText(context, "Il faut un nom !", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val interval = intervalStr.toIntOrNull() ?: 0
+                if (interval <= 0) {
+                    android.widget.Toast.makeText(context, "L'intervalle doit être supérieur à 0", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val lastKm = lastKmStr.toDoubleOrNull() ?: 0.0
+
+                // Si tout est bon, on sauvegarde
+                val id = itemToEdit?.id ?: 0
+                viewModel.saveItem(id, name, interval, lastKm)
             }
             .setNegativeButton("Annuler", null)
             .show()
     }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

@@ -31,4 +31,8 @@ class CarRepository(private val carDao: CarDao) {
         val profile = CarProfile(id = 1, totalMileage = 110000.0, carModel = "Peugeot 206+")
         carDao.insertOrUpdateProfile(profile)
     }
+
+    suspend fun insertOrUpdateProfileFull(profile: CarProfile) {
+        carDao.insertOrUpdateProfile(profile)
+    }
 }

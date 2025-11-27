@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:minWidth="300dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Profil Conducteur"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Modèle de voiture"/>
+    <EditText
+        android:id="@+id/et_car_model"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Peugeot 206+"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Kilométrage Compteur Actuel (Total)"
+        android:layout_marginTop="12dp"/>
+    <EditText
+        android:id="@+id/et_total_km"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:hint="ex: 154000"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Type de Carburant"
+        android:layout_marginTop="12dp"/>
+    <Spinner
+        android:id="@+id/sp_fuel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/fuel_types"
+        android:minHeight="48dp"/>
+    <Button
+        android:id="@+id/btn_save_profile"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Valider"
+        android:layout_marginTop="24dp"
+        android:backgroundTint="#4CAF50"/>
+
+</LinearLayout>

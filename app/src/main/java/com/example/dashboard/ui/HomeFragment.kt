@@ -36,9 +36,10 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.action_home_to_maintenance)
         }
 
-        // Ouverture Profil (Pour l'instant un simple message)
+        // Dans HomeFragment.kt
         binding.btnProfile.setOnClickListener {
-            Toast.makeText(context, "Bientôt: Modification du profil", Toast.LENGTH_SHORT).show()
+            val dialog = ProfileDialogFragment()
+            dialog.show(parentFragmentManager, "ProfileDialog")
         }
     }
 

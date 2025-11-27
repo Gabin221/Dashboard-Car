@@ -54,16 +54,16 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addOrUpdateItem(name: String, interval: Int, lastKm: Double, warning: Int) {
+    fun saveItem(id: Int, name: String, interval: Int, lastKm: Double) {
         viewModelScope.launch {
-            val newItem = MaintenanceItem(
+            val item = MaintenanceItem(
+                id = id, // Si 0 -> Insert, Sinon -> Update
                 name = name,
                 intervalKm = interval,
                 lastServiceKm = lastKm,
-                lastServiceDate = System.currentTimeMillis(),
-                warningThreshold = warning
+                lastServiceDate = System.currentTimeMillis()
             )
-            repository.saveMaintenanceItem(newItem)
+            repository.saveMaintenanceItem(item)
         }
     }
 }

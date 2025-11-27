@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Dashboard</string>
+    <string name="google_maps_key">use/your/value</string>
+    <string-array name="fuel_types">
+        <item>Essence</item>
+        <item>Diesel</item>
+        <item>Hybride</item>
+        <item>Électrique</item>
+    </string-array>
 </resources>
