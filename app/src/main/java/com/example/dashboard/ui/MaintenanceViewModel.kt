@@ -1,6 +1,7 @@
 package com.example.dashboard.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dashboard.data.AppDatabase

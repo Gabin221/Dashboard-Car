@@ -20,5 +20,5 @@ data class MaintenanceItem(
     var intervalKm: Int,        // Ex: 40000
     var lastServiceKm: Double,  // Ex: 119345.0
     var lastServiceDate: Long,  // Timestamp
-    var warningThreshold: Int = 3000 // Prévenir 3000km avant
+    var warningThreshold: Int = (intervalKm*0.8).toInt() // Prévenir 3000km avant
 )
