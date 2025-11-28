@@ -59,7 +59,7 @@ class MaintenanceFragment : Fragment() {
             viewModel.exportData(requireContext())
         }
     }
-    
+
     // Fonction unifiée pour Créer OU Modifier
     private fun showMaintenanceDialog(itemToEdit: com.example.dashboard.data.MaintenanceItem?) {
         val context = requireContext()
@@ -70,17 +70,17 @@ class MaintenanceFragment : Fragment() {
 
         val inputName = EditText(context).apply {
             hint = "Nom (ex: Pneus)"
-            setText(itemToEdit?.name ?: "Pneus")
+            setText(itemToEdit?.name ?: "")
         }
         val inputInterval = EditText(context).apply {
             hint = "Intervalle KM"
             inputType = InputType.TYPE_CLASS_NUMBER
-            setText(itemToEdit?.intervalKm?.toString() ?: "10000")
+            setText(itemToEdit?.intervalKm?.toString() ?: "")
         }
         val inputLastKm = EditText(context).apply {
             hint = "Fait à quel KM total ?"
             inputType = InputType.TYPE_CLASS_NUMBER
-            setText(itemToEdit?.lastServiceKm?.toString() ?: "110000")
+            setText(itemToEdit?.lastServiceKm?.toString() ?: "")
         }
 
         layout.addView(inputName)
