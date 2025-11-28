@@ -24,15 +24,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/tv_remaining"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reste 12000 km"
-            android:textColor="#AAAAAA"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
         <ProgressBar
             android:id="@+id/progress_bar"
             style="?android:attr/progressBarStyleHorizontal"
@@ -55,6 +46,15 @@
             android:textColor="#888888"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/progress_bar" />
+
+        <TextView
+            android:id="@+id/tv_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reste 12000 km"
+            android:textColor="#AAAAAA"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
