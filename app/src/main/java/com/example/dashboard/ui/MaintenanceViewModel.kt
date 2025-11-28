@@ -41,6 +41,7 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
             val distanceDriven = currentKm - item.lastServiceKm
             val remainingKm = item.intervalKm - distanceDriven
             val progressPercent = (distanceDriven / item.intervalKm * 100).toInt().coerceIn(0, 100)
+            val warningThreshold = item.intervalKm * 0.2  // 20% de l'intervalle
 
             MaintenanceUiState(
                 item = item,
@@ -48,12 +49,13 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
                 remainingKm = remainingKm,
                 progressPercent = progressPercent,
                 statusColor = when {
-                    remainingKm < 0 -> 0xFFFF5252.toInt() // Rouge (Dépassé)
-                    remainingKm < item.warningThreshold -> 0xFFFFAB00.toInt() // Orange (Bientôt)
-                    else -> 0xFF4CAF50.toInt() // Vert (OK)
+                    remainingKm < 0 -> 0xFFFF5252.toInt()  // Rouge (Dépassé)
+                    remainingKm <= warningThreshold -> 0xFFFFAB00.toInt()  // Orange (Bientôt)
+                    else -> 0xFF4CAF50.toInt()  // Vert (OK)
                 }
             )
         }
+
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun saveItem(id: Int, name: String, interval: Int, lastKm: Double) {
