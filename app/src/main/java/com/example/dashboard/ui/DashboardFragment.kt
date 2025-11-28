@@ -6,6 +6,9 @@ import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import android.location.Location // Ajoute cet import
+import androidx.fragment.app.viewModels // Ajoute cet import
+import com.example.dashboard.ui.ProfileViewModel // Ajoute cet import
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +33,11 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import android.location.Geocoder
+import android.widget.EditText
+import android.widget.LinearLayout
+import androidx.appcompat.app.AlertDialog
+import java.util.Locale
 
 class DashboardFragment : Fragment(), OnMapReadyCallback {
 
@@ -43,6 +51,12 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
     // --- CORRECTION 1 : Variable d'état pour le suivi ---
     private var isTrackingMode = true
+
+    // AJOUT 1 : Le ViewModel pour sauvegarder les KM
+    private val profileViewModel: ProfileViewModel by viewModels()
+
+    // AJOUT 2 : Pour mémoriser où on était il y a 1 seconde
+    private var lastLocation: Location? = null
 
     // HTTP pour la route
     private val client = OkHttpClient()
@@ -64,20 +78,71 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch { ObdManager.currentSpeed.collect { binding.tvSpeed.text = it.toString() } }
         lifecycleScope.launch { ObdManager.currentRpm.collect { binding.tvRpm.text = it.toString() } }
 
-        // Bouton Maison
-        binding.btnHomeShortcut.setOnClickListener {
-            // Remplace par tes coordonnées cibles
-            startNavigationTo("47.26196793105004, 5.966234481447267") // Exemple Dijon
+        binding.fabSearch.setOnClickListener {
+            showSearchDialog()
         }
 
-        // Bouton Maison
-        binding.btnTaffeShortcut.setOnClickListener {
-            // Remplace par tes coordonnées cibles
-            startNavigationTo("47.18426845610741, 5.814506625618502") // Exemple Kelly
+        // Clic sur la croix -> Efface le trajet
+        binding.btnClearRoute.setOnClickListener {
+            map?.clear() // Efface la ligne bleue
+            binding.cardTripInfo.visibility = View.GONE // Cache la carte info
+            isTrackingMode = true // Réactive le suivi auto
         }
 
         // Lancer la connexion OBD
         startObdConnection()
+    }
+
+    private fun showSearchDialog() {
+        val context = requireContext()
+        val layout = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 40, 50, 10)
+        }
+
+        val inputAddress = EditText(context).apply { hint = "Adresse ou Ville (ex: Paris)" }
+        layout.addView(inputAddress)
+
+        // Ici on pourra ajouter plus tard une ListView pour les Favoris
+
+        AlertDialog.Builder(context)
+            .setTitle("Où va-t-on ?")
+            .setView(layout)
+            .setPositiveButton("Y aller") { _, _ ->
+                val address = inputAddress.text.toString()
+                if (address.isNotEmpty()) {
+                    searchAndNavigate(address)
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun searchAndNavigate(addressStr: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Geocoding (Adresse -> Lat/Lng)
+                val geocoder = Geocoder(requireContext(), Locale.getDefault())
+                // getFromLocationName peut bloquer, donc on est bien dans Dispatchers.IO
+                val results = geocoder.getFromLocationName(addressStr, 1)
+
+                if (results != null && results.isNotEmpty()) {
+                    val location = results[0]
+                    val destination = "${location.latitude},${location.longitude}"
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Destination trouvée : $destination", Toast.LENGTH_SHORT).show()
+                        startNavigationTo(destination)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Adresse introuvable 😕", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -116,27 +181,46 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         locationCallback = object : com.google.android.gms.location.LocationCallback() {
             override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
                 for (location in locationResult.locations) {
-                    // --- CORRECTION 3 : On ne bouge la caméra que si le mode Suivi est actif ---
+
+                    // --- PARTIE CARTE (EXISTANTE) ---
                     if (map != null && isTrackingMode) {
                         val currentLatLng = LatLng(location.latitude, location.longitude)
-
                         val cameraUpdate = CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()
                                 .target(currentLatLng)
-                                .zoom(18f)        // Zoom assez proche
-                                .bearing(location.bearing) // Rotation selon le cap de la voiture
-                                .tilt(0f)        // Effet 3D prononcé
+                                .zoom(18f)
+                                .bearing(location.bearing)
+                                .tilt(60f)
                                 .build()
                         )
                         map?.animateCamera(cameraUpdate)
                     }
+
+                    // --- PARTIE COMPTEUR KILOMÉTRIQUE (NOUVEAU) ---
+                    if (lastLocation != null) {
+                        // Calcul de la distance parcourue depuis la dernière seconde (en mètres)
+                        val distanceInMeters = location.distanceTo(lastLocation!!)
+
+                        // On ignore les mouvements minuscules (bruit GPS à l'arrêt)
+                        // Si on a bougé de plus de 2 mètres
+                        if (distanceInMeters > 2) {
+                            // Conversion en Km (ex: 500m = 0.5km)
+                            val distanceInKm = distanceInMeters / 1000.0
+
+                            // On demande au ViewModel d'ajouter ça au total
+                            // Note: Il faudra créer cette fonction 'addDistance' juste après
+                            profileViewModel.addDistanceToProfile(distanceInKm)
+                        }
+                    }
+
+                    // On met à jour la dernière position connue
+                    lastLocation = location
                 }
             }
         }
 
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, android.os.Looper.getMainLooper())
     }
-
     private fun startNavigationTo(destination: String) {
         // ... (Ton code précédent pour vérifier la location) ...
         val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null } ?: return
@@ -156,14 +240,25 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                     val routes = jsonObject.getJSONArray("routes")
 
                     if (routes.length() > 0) {
-                        val points = routes.getJSONObject(0)
-                            .getJSONObject("overview_polyline")
-                            .getString("points")
+                        val route = routes.getJSONObject(0)
 
+                        // 1. DESSIN (Identique)
+                        val points = route.getJSONObject("overview_polyline").getString("points")
                         val decodedPath = PolylineDecoder.decode(points)
+
+                        // 2. EXTRACTION INFOS (Nouveau !)
+                        val legs = route.getJSONArray("legs")
+                        val leg = legs.getJSONObject(0)
+                        val distanceText = leg.getJSONObject("distance").getString("text") // ex: "145 km"
+                        val durationText = leg.getJSONObject("duration").getString("text") // ex: "2 hours 10 mins"
 
                         withContext(Dispatchers.Main) {
                             drawRouteOnMap(decodedPath)
+
+                            // Afficher la CardView
+                            binding.cardTripInfo.visibility = View.VISIBLE
+                            binding.tvTripDistance.text = distanceText
+                            binding.tvTripTime.text = durationText
                         }
                     }
                 }

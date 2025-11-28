@@ -8,6 +8,7 @@ import com.example.dashboard.data.CarRepository
 import com.example.dashboard.data.MaintenanceItem
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -64,6 +65,36 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
                 lastServiceDate = System.currentTimeMillis()
             )
             repository.saveMaintenanceItem(item)
+        }
+    }
+
+    // Supprimer un item
+    fun deleteItem(item: MaintenanceItem) {
+        viewModelScope.launch {
+            repository.deleteMaintenanceItem(item) // Il faudra ajouter ça au Repository/DAO
+        }
+    }
+
+    // Générer le CSV pour l'export
+    fun exportData(context: android.content.Context) {
+        viewModelScope.launch {
+            val items = repository.maintenanceItems.first()
+            val sb = StringBuilder()
+            sb.append("Nom,Intervalle,Dernier KM,Derniere Date\n")
+
+            items.forEach {
+                sb.append("${it.name},${it.intervalKm},${it.lastServiceKm},${java.util.Date(it.lastServiceDate)}\n")
+            }
+
+            // Création de l'intent de partage
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Export Entretien 206+")
+                putExtra(android.content.Intent.EXTRA_TEXT, sb.toString())
+            }
+
+            // Lancer le partage (Gmail, Drive, WhatsApp...)
+            context.startActivity(android.content.Intent.createChooser(intent, "Exporter via..."))
         }
     }
 }

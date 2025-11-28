@@ -35,4 +35,24 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             repository.insertOrUpdateProfileFull(profile)
         }
     }
+
+    // Dans ProfileViewModel.kt
+
+    fun addDistanceToProfile(kmTraveled: Double) {
+        viewModelScope.launch {
+            // 1. On récupère le profil actuel
+            val currentProfile = repository.carProfile.firstOrNull()
+
+            if (currentProfile != null) {
+                // 2. On ajoute la distance
+                val newTotal = currentProfile.totalMileage + kmTraveled
+
+                // 3. On sauvegarde le tout (et ça mettra à jour l'objet complet)
+                // On utilise une copie pour ne pas écraser le modèle ou le carburant
+                val updatedProfile = currentProfile.copy(totalMileage = newTotal)
+
+                repository.insertOrUpdateProfileFull(updatedProfile)
+            }
+        }
+    }
 }

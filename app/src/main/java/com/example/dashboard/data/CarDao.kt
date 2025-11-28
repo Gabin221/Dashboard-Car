@@ -21,4 +21,8 @@ interface CarDao {
 
     @Update
     suspend fun updateMaintenanceItem(item: MaintenanceItem)
+
+    @Delete
+    suspend fun deleteMaintenanceItem(item: MaintenanceItem)
+
 }

@@ -5,8 +5,9 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [CarProfile::class, MaintenanceItem::class], version = 1)
+@Database(entities = [CarProfile::class, MaintenanceItem::class, SavedAddress::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun savedAddressDao(): SavedAddressDao // <--- Ajoute ça
     abstract fun carDao(): CarDao
 
     companion object {

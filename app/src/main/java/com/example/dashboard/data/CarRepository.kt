@@ -26,6 +26,10 @@ class CarRepository(private val carDao: CarDao) {
         }
     }
 
+    suspend fun deleteMaintenanceItem(item: MaintenanceItem) {
+        carDao.deleteMaintenanceItem(item)
+    }
+
     // Initialiser un profil vide si inexistant (pour éviter les crashs au premier lancement)
     suspend fun initProfileIfNeeded() {
         val profile = CarProfile(id = 1, totalMileage = 110000.0, carModel = "Peugeot 206+")
