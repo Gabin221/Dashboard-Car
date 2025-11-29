@@ -58,6 +58,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     // AJOUT 2 : Pour mémoriser où on était il y a 1 seconde
     private var lastLocation: Location? = null
 
+    private val savedAddressViewModel: SavedAddressViewModel by viewModels()
+    private var currentDestination: com.google.android.gms.maps.model.LatLng? = null
+    private var currentAddressName: String = ""
+
     // HTTP pour la route
     private val client = OkHttpClient()
 
@@ -78,8 +82,73 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch { ObdManager.currentSpeed.collect { binding.tvSpeed.text = it.toString() } }
         lifecycleScope.launch { ObdManager.currentRpm.collect { binding.tvRpm.text = it.toString() } }
 
-        binding.fabSearch.setOnClickListener {
-            showSearchDialog()
+        binding.btnSearchGo.setOnClickListener {
+            val address = binding.etSearch.text.toString()
+            if (address.isNotEmpty()) {
+                // On cache le clavier pour le confort
+                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+
+                // On lance la recherche
+                searchAndNavigate(address)
+            }
+        }
+
+        binding.btnSaveFavorite.setOnClickListener {
+            if (currentDestination != null && binding.btnSaveFavorite.tag != "saved") {
+                showSaveFavoriteDialog()
+            } else {
+                Toast.makeText(context, "Déjà enregistré ou pas de destination", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        lifecycleScope.launch {
+            savedAddressViewModel.savedAddresses.collect { savedList ->
+                // On prépare la liste pour le Spinner
+                // On crée une liste d'objets simple pour l'affichage (String)
+                val spinnerItems = mutableListOf("❤  Mes Favoris...") // Header
+
+                // On ajoute les favoris de la BDD
+                spinnerItems.addAll(savedList.map { it.name })
+
+                val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, spinnerItems)
+                binding.spinnerFavorites.adapter = adapter
+
+                // Gestion du clic sur un favori
+                binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
+                        if (position > 0) { // On ignore le header
+                            // On retrouve l'objet complet grâce à l'index (position - 1 car il y a le header)
+                            val selectedFav = savedList[position - 1]
+
+                            binding.etSearch.setText(selectedFav.name)
+                            // On lance la nav direct !
+                            val dest = "${selectedFav.latitude},${selectedFav.longitude}"
+                            startNavigationTo(dest)
+
+                            // On remet le spinner à 0 pour pouvoir resélectionner le même plus tard si besoin
+                            binding.spinnerFavorites.setSelection(0)
+                        }
+                    }
+                    override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+                }
+            }
+        }
+
+        val fakeFavorites = listOf("Favoris...", "Maison", "Boulot")
+        val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, fakeFavorites)
+        binding.spinnerFavorites.adapter = adapter
+
+        // Gestion du clic sur le Spinner
+        binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (position > 0) { // On ignore le premier élément "Favoris..."
+                    val selected = fakeFavorites[position]
+                    binding.etSearch.setText(selected) // Ça remplit la barre
+                    // Tu pourras lancer la navigation directement ici plus tard
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
         }
 
         // Clic sur la croix -> Efface le trajet
@@ -91,6 +160,45 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // Lancer la connexion OBD
         startObdConnection()
+    }
+
+    private fun showSaveFavoriteDialog() {
+        val context = requireContext()
+        val inputName = EditText(context).apply {
+            hint = "Nom du favori (ex: Aldi Coin de rue)"
+            setText(currentAddressName)
+        }
+
+        // On ajoute une marge
+        val container = android.widget.FrameLayout(context)
+        val params = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { leftMargin = 50; rightMargin = 50 }
+        inputName.layoutParams = params
+        container.addView(inputName)
+
+        AlertDialog.Builder(context)
+            .setTitle("Ajouter aux favoris")
+            .setView(container)
+            .setPositiveButton("Sauvegarder") { _, _ ->
+                val name = inputName.text.toString()
+                if (name.isNotEmpty() && currentDestination != null) {
+                    savedAddressViewModel.addFavorite(
+                        name,
+                        currentAddressName, // L'adresse texte
+                        currentDestination!!.latitude,
+                        currentDestination!!.longitude
+                    )
+
+                    // Feedback visuel
+                    binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_on)
+                    binding.btnSaveFavorite.tag = "saved"
+                    Toast.makeText(context, "Enregistré !", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
     }
 
     private fun showSearchDialog() {
@@ -118,33 +226,67 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             .show()
     }
 
-    private fun searchAndNavigate(addressStr: String) {
+    private fun searchAndNavigate(query: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // 1. Geocoding (Adresse -> Lat/Lng)
-                val geocoder = Geocoder(requireContext(), Locale.getDefault())
-                // getFromLocationName peut bloquer, donc on est bien dans Dispatchers.IO
-                val results = geocoder.getFromLocationName(addressStr, 1)
+                val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+
+                // --- AMÉLIORATION : RECHERCHE LOCALE ---
+                // On récupère la position actuelle pour aider le Geocoder
+                val myPos = try { map?.myLocation } catch (e: Exception) { null }
+
+                val results: MutableList<android.location.Address>?
+
+                if (myPos != null) {
+                    // On définit une zone de recherche (environ 50km autour de toi)
+                    // 1 degré de latitude ~= 111km. Donc 0.5 ~= 55km.
+                    val lowerLeftLat = myPos.latitude - 0.4
+                    val lowerLeftLong = myPos.longitude - 0.4
+                    val upperRightLat = myPos.latitude + 0.4
+                    val upperRightLong = myPos.longitude + 0.4
+
+                    // Recherche avec contrainte de zone (API Android moderne)
+                    // Note: Si tu es sur une vieille version Android, cette méthode spécifique peut ne pas exister
+                    // mais getFromLocationName avec 4 doubles fonctionne depuis l'API 1.
+                    results = geocoder.getFromLocationName(query, 5, lowerLeftLat, lowerLeftLong, upperRightLat, upperRightLong)
+                } else {
+                    // Fallback si pas de GPS
+                    results = geocoder.getFromLocationName(query, 5)
+                }
 
                 if (results != null && results.isNotEmpty()) {
+                    // On prend le premier résultat
                     val location = results[0]
-                    val destination = "${location.latitude},${location.longitude}"
+                    val destinationCoords = "${location.latitude},${location.longitude}"
+
+                    // On sauvegarde les infos pour le bouton "Favori"
+                    currentDestination = LatLng(location.latitude, location.longitude)
+                    currentAddressName = location.featureName ?: query // "Aldi" ou l'adresse
+                    val fullAddress = location.getAddressLine(0) ?: query
 
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Destination trouvée : $destination", Toast.LENGTH_SHORT).show()
-                        startNavigationTo(destination)
+                        Toast.makeText(context, "Trouvé : $fullAddress", Toast.LENGTH_SHORT).show()
+
+                        // Si c'est un résultat vague (ex: juste une ville), on zoome dessus
+                        // Sinon on trace la route
+                        startNavigationTo(destinationCoords)
+
+                        // On prépare le bouton favori (Étoile vide par défaut)
+                        binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_off)
+                        binding.btnSaveFavorite.tag = "unsaved" // Petit marqueur pour savoir l'état
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Adresse introuvable 😕", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Introuvable dans le coin 😕", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Erreur recherche: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
-
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap

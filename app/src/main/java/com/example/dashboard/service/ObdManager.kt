@@ -15,8 +15,6 @@ import java.io.OutputStream
 import java.util.UUID
 import kotlin.random.Random
 
-// use/your/value
-
 object ObdManager {
     // UUID Standard pour les périphériques Série (ELM327 & Freematics)
     private val SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
@@ -26,7 +24,7 @@ object ObdManager {
     private var outputStream: OutputStream? = null
 
     // Pour tester sans voiture (mettre à false quand tu vas dans la 206)
-    var isMockMode = false
+    var isMockMode = true
 
     // Données observables par l'interface
     private val _currentRpm = MutableStateFlow(0)
