@@ -32,6 +32,10 @@ object ObdManager {
 
     private val _currentSpeed = MutableStateFlow(0)
     val currentSpeed: StateFlow<Int> = _currentSpeed
+    private val _currentData1 = MutableStateFlow(0)
+    val currentData1: StateFlow<Int> = _currentData1
+    private val _currentData2 = MutableStateFlow(0)
+    val currentData2: StateFlow<Int> = _currentData2
 
     private val _connectionStatus = MutableStateFlow("Déconnecté")
     val connectionStatus: StateFlow<String> = _connectionStatus
@@ -80,9 +84,13 @@ object ObdManager {
                     // On fait varier la vitesse et le régime aléatoirement
                     val fakeRpm = (800..3000).random()
                     val fakeSpeed = (0..130).random()
+                    val fakeData1 = (0..10).random()
+                    val fakeData2 = (0..700).random()
 
                     _currentRpm.emit(fakeRpm)
                     _currentSpeed.emit(fakeSpeed)
+                    _currentData1.emit(fakeData1)
+                    _currentData2.emit(fakeData2)
                     delay(1000) // Mise à jour chaque seconde
                 } else {
                     // --- RÉEL (ELM327) ---

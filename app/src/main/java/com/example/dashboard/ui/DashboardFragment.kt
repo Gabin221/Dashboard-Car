@@ -1,4 +1,4 @@
-package com.example.dashboard.ui // <-- Ton package
+package com.example.dashboard.ui
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
@@ -6,9 +6,9 @@ import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.location.Location // Ajoute cet import
-import androidx.fragment.app.viewModels // Ajoute cet import
-import com.example.dashboard.ui.ProfileViewModel // Ajoute cet import
+import android.location.Location
+import androidx.fragment.app.viewModels
+import com.example.dashboard.ui.ProfileViewModel
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,29 +40,17 @@ import androidx.appcompat.app.AlertDialog
 import java.util.Locale
 
 class DashboardFragment : Fragment(), OnMapReadyCallback {
-
     private var _binding: FragmentDashboardBinding? = null
     private val binding get() = _binding!!
     private var map: GoogleMap? = null
-
-    // GPS & Location
     private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
     private var locationCallback: com.google.android.gms.location.LocationCallback? = null
-
-    // --- CORRECTION 1 : Variable d'état pour le suivi ---
     private var isTrackingMode = true
-
-    // AJOUT 1 : Le ViewModel pour sauvegarder les KM
     private val profileViewModel: ProfileViewModel by viewModels()
-
-    // AJOUT 2 : Pour mémoriser où on était il y a 1 seconde
     private var lastLocation: Location? = null
-
     private val savedAddressViewModel: SavedAddressViewModel by viewModels()
-    private var currentDestination: com.google.android.gms.maps.model.LatLng? = null
+    private var currentDestination: LatLng? = null
     private var currentAddressName: String = ""
-
-    // HTTP pour la route
     private val client = OkHttpClient()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -72,15 +60,15 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(requireActivity())
-
         val mapFragment = childFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment?
         mapFragment?.getMapAsync(this)
 
         // Flows OBD (Vitesse / RPM)
         lifecycleScope.launch { ObdManager.currentSpeed.collect { binding.tvSpeed.text = it.toString() } }
         lifecycleScope.launch { ObdManager.currentRpm.collect { binding.tvRpm.text = it.toString() } }
+        lifecycleScope.launch { ObdManager.currentData1.collect { binding.tvData1.text = it.toString() } }
+        lifecycleScope.launch { ObdManager.currentData2.collect { binding.tvData2.text = it.toString() } }
 
         // 1. GESTION DES BOUTONS MAISON / TRAVAIL
         binding.btnHome.setOnClickListener { handleShortcut("Domicile") }
@@ -88,24 +76,19 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
         binding.btnManageFavorites.setOnClickListener {
-            // On récupère l'objet sélectionné dans le Spinner
             val position = binding.spinnerFavorites.selectedItemPosition
-            if (position > 0) { // Si ce n'est pas le header "Favoris..."
-                // ASTUCE : On doit récupérer la vraie liste des favoris stockée dans le ViewModel
-                // Pour faire simple ici, on va demander confirmation
+            if (position > 0) {
                 val selectedName = binding.spinnerFavorites.selectedItem.toString()
-
                 AlertDialog.Builder(requireContext())
                     .setTitle("Supprimer $selectedName ?")
                     .setMessage("Ce favori sera effacé définitivement.")
                     .setPositiveButton("Supprimer") { _, _ ->
-                        // On lance une coroutine pour trouver et supprimer
                         lifecycleScope.launch {
                             val itemToDelete = savedAddressViewModel.getAddressByName(selectedName)
                             if (itemToDelete != null) {
                                 savedAddressViewModel.deleteFavorite(itemToDelete)
                                 Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
-                                binding.spinnerFavorites.setSelection(0) // Reset
+                                binding.spinnerFavorites.setSelection(0)
                             }
                         }
                     }
@@ -119,11 +102,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         binding.btnSearchGo.setOnClickListener {
             val address = binding.etSearch.text.toString()
             if (address.isNotEmpty()) {
-                // On cache le clavier pour le confort
-                val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 imm.hideSoftInputFromWindow(view.windowToken, 0)
-
-                // On lance la recherche
                 searchAndNavigate(address)
             }
         }
@@ -133,35 +113,22 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 showSaveFavoriteDialog()
             } else {
                 showSaveFavoriteDialog()
-                // Toast.makeText(context, "Déjà enregistré ou pas de destination", Toast.LENGTH_SHORT).show()
             }
         }
 
         lifecycleScope.launch {
             savedAddressViewModel.savedAddresses.collect { savedList ->
-                // On prépare la liste pour le Spinner
-                // On crée une liste d'objets simple pour l'affichage (String)
-                val spinnerItems = mutableListOf("❤  Mes Favoris...") // Header
-
-                // On ajoute les favoris de la BDD
+                val spinnerItems = mutableListOf("❤  Mes Favoris...")
                 spinnerItems.addAll(savedList.map { it.name })
-
                 val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, spinnerItems)
                 binding.spinnerFavorites.adapter = adapter
-
-                // Gestion du clic sur un favori
                 binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                        if (position > 0) { // On ignore le header
-                            // On retrouve l'objet complet grâce à l'index (position - 1 car il y a le header)
+                        if (position > 0) {
                             val selectedFav = savedList[position - 1]
-
                             binding.etSearch.setText(selectedFav.name)
-                            // On lance la nav direct !
                             val dest = "${selectedFav.latitude},${selectedFav.longitude}"
                             startNavigationTo(dest)
-
-                            // On remet le spinner à 0 pour pouvoir resélectionner le même plus tard si besoin
                             binding.spinnerFavorites.setSelection(0)
                         }
                     }
@@ -173,14 +140,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         val fakeFavorites = listOf("Favoris...", "Maison", "Boulot")
         val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, fakeFavorites)
         binding.spinnerFavorites.adapter = adapter
-
-        // Gestion du clic sur le Spinner
         binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                if (position > 0) { // On ignore le premier élément "Favoris..."
+                if (position > 0) {
                     val selected = fakeFavorites[position]
-                    binding.etSearch.setText(selected) // Ça remplit la barre
-                    // Tu pourras lancer la navigation directement ici plus tard
+                    binding.etSearch.setText(selected)
                 }
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
@@ -188,9 +152,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // Clic sur la croix -> Efface le trajet
         binding.btnClearRoute.setOnClickListener {
-            map?.clear() // Efface la ligne bleue
-            binding.cardTripInfo.visibility = View.GONE // Cache la carte info
-            isTrackingMode = true // Réactive le suivi auto
+            map?.clear()
+            binding.cardTripInfo.visibility = View.GONE
+            isTrackingMode = true
         }
 
         // Lancer la connexion OBD
@@ -201,11 +165,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch {
             val shortcut = savedAddressViewModel.getAddressByName(name)
             if (shortcut != null) {
-                // Si l'adresse existe, on y va
                 startNavigationTo("${shortcut.latitude},${shortcut.longitude}")
                 Toast.makeText(context, "Direction $name !", Toast.LENGTH_SHORT).show()
             } else {
-                // Sinon, on propose de la créer
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "$name n'est pas défini", Toast.LENGTH_SHORT).show()
                     showCreateShortcutDialog(name)
@@ -217,14 +179,12 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private fun showCreateShortcutDialog(name: String) {
         val input = EditText(requireContext())
         input.hint = "Adresse pour $name (ex: 10 rue...)"
-
         AlertDialog.Builder(requireContext())
             .setTitle("Définir $name")
             .setView(input)
             .setPositiveButton("Rechercher & Sauvegarder") { _, _ ->
                 val address = input.text.toString()
                 if (address.isNotEmpty()) {
-                    // On lance une recherche spéciale qui sauvegardera automatiquement
                     searchAndSaveShortcut(address, name)
                 }
             }
@@ -233,15 +193,13 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun searchAndSaveShortcut(query: String, shortcutName: String) {
-        // Tu peux réutiliser la logique de searchAndNavigate mais en sauvegardant directement à la fin
-        // Version simplifiée :
         lifecycleScope.launch(Dispatchers.IO) {
-            val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+            val geocoder = Geocoder(requireContext(), Locale.getDefault())
             try {
                 val results = geocoder.getFromLocationName(query, 1)
                 if (results != null && results.isNotEmpty()) {
                     val loc = results[0]
-                    savedAddressViewModel.addFavorite(shortcutName, loc.getAddressLine(0)?:query, loc.latitude, loc.longitude)
+                    savedAddressViewModel.addFavorite(shortcutName, loc.getAddressLine(0) ?: query, loc.latitude, loc.longitude)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "$shortcutName enregistré !", Toast.LENGTH_SHORT).show()
                     }
@@ -258,8 +216,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             hint = "Nom du favori (ex: Aldi Coin de rue)"
             setText(currentAddressName)
         }
-
-        // On ajoute une marge
         val container = android.widget.FrameLayout(context)
         val params = android.widget.FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -267,7 +223,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         ).apply { leftMargin = 50; rightMargin = 50 }
         inputName.layoutParams = params
         container.addView(inputName)
-
         AlertDialog.Builder(context)
             .setTitle("Ajouter aux favoris")
             .setView(container)
@@ -276,12 +231,10 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 if (name.isNotEmpty() && currentDestination != null) {
                     savedAddressViewModel.addFavorite(
                         name,
-                        currentAddressName, // L'adresse texte
+                        currentAddressName,
                         currentDestination!!.latitude,
                         currentDestination!!.longitude
                     )
-
-                    // Feedback visuel
                     binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_on)
                     binding.btnSaveFavorite.tag = "saved"
                     Toast.makeText(context, "Enregistré !", Toast.LENGTH_SHORT).show()
@@ -297,12 +250,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             orientation = LinearLayout.VERTICAL
             setPadding(50, 40, 50, 10)
         }
-
         val inputAddress = EditText(context).apply { hint = "Adresse ou Ville (ex: Paris)" }
         layout.addView(inputAddress)
-
-        // Ici on pourra ajouter plus tard une ListView pour les Favoris
-
         AlertDialog.Builder(context)
             .setTitle("Où va-t-on ?")
             .setView(layout)
@@ -319,31 +268,21 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private fun searchAndNavigate(query: String) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+                val geocoder = Geocoder(requireContext(), Locale.getDefault())
                 val myPos = try { map?.myLocation } catch (e: Exception) { null }
-
                 var results: MutableList<android.location.Address>? = null
-
-                // STRATÉGIE 1 : Recherche locale (Zone 50km)
                 if (myPos != null) {
                     val lat = myPos.latitude
                     val lng = myPos.longitude
-                    // Tentative standard restreinte à la zone
                     try {
                         results = geocoder.getFromLocationName(query, 1, lat - 0.4, lng - 0.4, lat + 0.4, lng + 0.4)
                     } catch (e: Exception) {}
-
-                    // STRATÉGIE 2 : Le "Hack" Ville (Si rien trouvé)
-                    // Si on cherche un magasin (ex: Aldi) sans préciser la ville, ça échoue souvent.
-                    // On récupère le nom de ta ville actuelle et on l'ajoute.
                     if (results.isNullOrEmpty()) {
                         try {
-                            // On demande à Google : "Dans quelle ville je suis ?"
                             val myAddressInfo = geocoder.getFromLocation(lat, lng, 1)
                             if (myAddressInfo != null && myAddressInfo.isNotEmpty()) {
-                                val myCity = myAddressInfo[0].locality // Ex: "Pirey"
+                                val myCity = myAddressInfo[0].locality
                                 val newQuery = "$query $myCity"
-
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(context, "Tentative avec : $newQuery", Toast.LENGTH_SHORT).show()
                                 }
@@ -352,31 +291,21 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                         } catch (e: Exception) {}
                     }
                 }
-
-                // STRATÉGIE 3 : Recherche mondiale (Dernier recours)
                 if (results.isNullOrEmpty()) {
                     results = geocoder.getFromLocationName(query, 1)
                 }
-
-                // --- TRAITEMENT DU RÉSULTAT ---
                 if (results != null && results.isNotEmpty()) {
                     val location = results[0]
                     val destinationCoords = "${location.latitude},${location.longitude}"
-
                     currentDestination = LatLng(location.latitude, location.longitude)
                     currentAddressName = location.featureName ?: query
                     val fullAddress = location.getAddressLine(0) ?: query
-
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Go : $fullAddress", Toast.LENGTH_SHORT).show()
                         startNavigationTo(destinationCoords)
-
-                        // Reset bouton favori
                         binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_off)
                         binding.btnSaveFavorite.tag = "unsaved"
-
-                        // On cache le clavier et la recherche pour voir la carte
-                        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.hideSoftInputFromWindow(view?.windowToken, 0)
                     }
                 } else {
@@ -391,30 +320,23 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             }
         }
     }
+
     @SuppressLint("MissingPermission")
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
         map?.isMyLocationEnabled = true
         map?.uiSettings?.isMyLocationButtonEnabled = true
         map?.uiSettings?.isCompassEnabled = true
-
-        // --- CORRECTION 2 : Gestion intelligente du suivi ---
-
-        // Si l'utilisateur touche la carte (pan/zoom), on désactive le suivi automatique
         map?.setOnCameraMoveStartedListener { reason ->
             if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
                 isTrackingMode = false
-                // On peut afficher un petit Toast discret ou rien du tout
             }
         }
-
-        // Si l'utilisateur clique sur le bouton "Cible" (re-centrer), on réactive le suivi
         map?.setOnMyLocationButtonClickListener {
             isTrackingMode = true
             Toast.makeText(context, "Mode Suivi activé", Toast.LENGTH_SHORT).show()
-            false // Retourne false pour laisser Google Maps faire l'animation de centrage par défaut
+            false
         }
-
         startLocationUpdates()
     }
 
@@ -423,85 +345,58 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         val locationRequest = com.google.android.gms.location.LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY, 1000
         ).build()
-
         locationCallback = object : com.google.android.gms.location.LocationCallback() {
             override fun onLocationResult(locationResult: com.google.android.gms.location.LocationResult) {
                 for (location in locationResult.locations) {
-
-                    // --- PARTIE CARTE (EXISTANTE) ---
                     if (map != null && isTrackingMode) {
                         val currentLatLng = LatLng(location.latitude, location.longitude)
                         val cameraUpdate = CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()
                                 .target(currentLatLng)
-                                .zoom(18f)
+                                .zoom(17f)
                                 .bearing(location.bearing)
                                 .tilt(0f)
                                 .build()
                         )
                         map?.animateCamera(cameraUpdate)
                     }
-
-                    // --- PARTIE COMPTEUR KILOMÉTRIQUE (NOUVEAU) ---
                     if (lastLocation != null) {
-                        // Calcul de la distance parcourue depuis la dernière seconde (en mètres)
                         val distanceInMeters = location.distanceTo(lastLocation!!)
-
-                        // On ignore les mouvements minuscules (bruit GPS à l'arrêt)
-                        // Si on a bougé de plus de 2 mètres
                         if (distanceInMeters > 2) {
-                            // Conversion en Km (ex: 500m = 0.5km)
                             val distanceInKm = distanceInMeters / 1000.0
-
-                            // On demande au ViewModel d'ajouter ça au total
-                            // Note: Il faudra créer cette fonction 'addDistance' juste après
                             profileViewModel.addDistanceToProfile(distanceInKm)
                         }
                     }
-
-                    // On met à jour la dernière position connue
                     lastLocation = location
                 }
             }
         }
-
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, android.os.Looper.getMainLooper())
     }
+
     private fun startNavigationTo(destination: String) {
-        // ... (Ton code précédent pour vérifier la location) ...
         val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null } ?: return
         val origin = "${currentLoc.latitude},${currentLoc.longitude}"
-        val apiKey = getString(R.string.google_maps_key) // Ou ta clé en dur
-
+        val apiKey = getString(R.string.google_maps_key)
         val url = "https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&mode=driving&key=$apiKey"
-
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val request = Request.Builder().url(url).build()
                 val response = client.newCall(request).execute()
                 val jsonData = response.body?.string()
-
                 if (jsonData != null) {
                     val jsonObject = JSONObject(jsonData)
                     val routes = jsonObject.getJSONArray("routes")
-
                     if (routes.length() > 0) {
                         val route = routes.getJSONObject(0)
-
-                        // 1. DESSIN (Identique)
                         val points = route.getJSONObject("overview_polyline").getString("points")
                         val decodedPath = PolylineDecoder.decode(points)
-
-                        // 2. EXTRACTION INFOS (Nouveau !)
                         val legs = route.getJSONArray("legs")
                         val leg = legs.getJSONObject(0)
-                        val distanceText = leg.getJSONObject("distance").getString("text") // ex: "145 km"
-                        val durationText = leg.getJSONObject("duration").getString("text") // ex: "2 hours 10 mins"
-
+                        val distanceText = leg.getJSONObject("distance").getString("text")
+                        val durationText = leg.getJSONObject("duration").getString("text")
                         withContext(Dispatchers.Main) {
                             drawRouteOnMap(decodedPath)
-
-                            // Afficher la CardView
                             binding.cardTripInfo.visibility = View.VISIBLE
                             binding.tvTripDistance.text = distanceText
                             binding.tvTripTime.text = durationText
@@ -513,52 +408,34 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun drawRouteOnMap(path: List<LatLng>) {
-        map?.clear() // Attention, cela efface aussi les autres markers s'il y en a
-
-        // --- CORRECTION 4 : Tracé de la route ---
+        map?.clear()
         val polylineOptions = PolylineOptions()
             .addAll(path)
-            .width(20f)       // Un peu plus large pour être bien visible
+            .width(20f)
             .color(Color.BLUE)
-            .geodesic(false)  // <--- IMPORTANT : Mettre false pour suivre la route et pas faire un trait "avion"
-            .jointType(com.google.android.gms.maps.model.JointType.ROUND) // Jolis coins arrondis
-
+            .geodesic(false)
+            .jointType(com.google.android.gms.maps.model.JointType.ROUND)
         map?.addPolyline(polylineOptions)
-
-        // Réactiver le suivi pour remettre la caméra sur la voiture au départ
         isTrackingMode = true
     }
 
     private fun startObdConnection() {
-        // 1. DÉSACTIVER LA SIMULATION
         ObdManager.isMockMode = true
-
-        // 2. TON ADRESSE MAC (ELM 327)
         val macAddressELM = "use/your/value"
-
         lifecycleScope.launch {
-            // On récupère l'adaptateur Bluetooth du téléphone
             val bluetoothManager = requireContext().getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
             val adapter = bluetoothManager.adapter
-
-            // Vérification basique que le Bluetooth est allumé
             if (adapter == null || !adapter.isEnabled) {
                 Toast.makeText(context, "Bluetooth éteint !", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-
-            binding.tvSpeed.text = "..." // Feedback visuel de tentative
-
-            // Tentative de connexion
+            binding.tvSpeed.text = "..."
             val success = ObdManager.connect(macAddressELM, adapter)
-
             if (success) {
                 Toast.makeText(context, "Connecté à la 206+ !", Toast.LENGTH_SHORT).show()
-                // Lancement de la boucle de lecture
                 ObdManager.startDataLoop()
             } else {
                 Toast.makeText(context, "Échec connexion OBD (Vérifie le contact)", Toast.LENGTH_LONG).show()
-                // Si ça rate, on remet le mock pour pas que l'appli soit vide
                 ObdManager.isMockMode = true
                 ObdManager.startDataLoop()
             }
