@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.dashboard.databinding.DialogProfileBinding
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class ProfileDialogFragment : DialogFragment() {
 
@@ -25,28 +26,27 @@ class ProfileDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Charger les données existantes
         lifecycleScope.launch {
             val profile = viewModel.getCurrentProfile()
             if (profile != null) {
                 binding.etCarModel.setText(profile.carModel)
-                binding.etTotalKm.setText(profile.totalMileage.toString())
-                // Pour le spinner, c'est plus chiant à pré-sélectionner, on laisse par défaut pour l'instant
+                // CORRECTION ICI : Formatage pour éviter 110000.00000001
+                binding.etTotalKm.setText(String.format(Locale.US, "%.1f", profile.totalMileage))
             }
         }
 
         binding.btnSaveProfile.setOnClickListener {
             val model = binding.etCarModel.text.toString()
-            val km = binding.etTotalKm.text.toString().toDoubleOrNull() ?: 0.0
-            val fuel = binding.spFuel.selectedItem.toString()
+            val kmStr = binding.etTotalKm.text.toString().replace(",", ".") // Sécurité virgule
+            val km = kmStr.toDoubleOrNull() ?: 0.0
+            val fuel = binding.spFuel.selectedItem?.toString() ?: "Essence"
 
             viewModel.saveProfile(model, km, fuel)
-            Toast.makeText(context, "Profil mis à jour !", Toast.LENGTH_SHORT).show()
-            dismiss() // Ferme la fenêtre
+            Toast.makeText(context, "Profil sauvegardé !", Toast.LENGTH_SHORT).show()
+            dismiss()
         }
     }
 
-    // Pour que la fenêtre soit jolie (largeur)
     override fun onStart() {
         super.onStart()
         dialog?.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)

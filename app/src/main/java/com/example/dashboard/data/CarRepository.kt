@@ -1,23 +1,27 @@
 package com.example.dashboard.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 
 class CarRepository(private val carDao: CarDao) {
 
-    // Récupérer le profil (et donc le KM total actuel de la voiture)
+    // Flux de données
     val carProfile: Flow<CarProfile?> = carDao.getProfile()
-
-    // Récupérer la liste des entretiens
     val maintenanceItems: Flow<List<MaintenanceItem>> = carDao.getAllMaintenanceItems()
 
-    // Mettre à jour le KM total (sera appelé par le Dashboard plus tard)
-    suspend fun updateCurrentMileage(newMileage: Double) {
-        // On récupère le profil existant ou on en crée un par défaut
-        val profile = CarProfile(id = 1, totalMileage = newMileage)
+    // Gestion Profil
+    suspend fun saveProfile(profile: CarProfile) {
         carDao.insertOrUpdateProfile(profile)
     }
 
-    // Ajouter ou modifier un entretien
+    suspend fun updateCurrentMileage(newMileage: Double) {
+        val current = carProfile.firstOrNull() ?: CarProfile()
+        // On garde les infos existantes, on change juste le kilométrage
+        val updated = current.copy(totalMileage = newMileage)
+        carDao.insertOrUpdateProfile(updated)
+    }
+
+    // Gestion Maintenance
     suspend fun saveMaintenanceItem(item: MaintenanceItem) {
         if (item.id == 0) {
             carDao.addMaintenanceItem(item)
@@ -30,13 +34,8 @@ class CarRepository(private val carDao: CarDao) {
         carDao.deleteMaintenanceItem(item)
     }
 
-    // Initialiser un profil vide si inexistant (pour éviter les crashs au premier lancement)
-    suspend fun initProfileIfNeeded() {
-        val profile = CarProfile(id = 1, totalMileage = 110000.0, carModel = "Peugeot 206+")
-        carDao.insertOrUpdateProfile(profile)
-    }
+    // Gestion Logs
+    fun getLogs(itemId: Int): Flow<List<MaintenanceLog>> = carDao.getLogsForItem(itemId)
 
-    suspend fun insertOrUpdateProfileFull(profile: CarProfile) {
-        carDao.insertOrUpdateProfile(profile)
-    }
+    suspend fun getLogsSync(itemId: Int): List<MaintenanceLog> = carDao.getLogsForItemSync(itemId)
 }

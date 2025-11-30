@@ -82,6 +82,40 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch { ObdManager.currentSpeed.collect { binding.tvSpeed.text = it.toString() } }
         lifecycleScope.launch { ObdManager.currentRpm.collect { binding.tvRpm.text = it.toString() } }
 
+        // 1. GESTION DES BOUTONS MAISON / TRAVAIL
+        binding.btnHome.setOnClickListener { handleShortcut("Domicile") }
+        binding.btnWork.setOnClickListener { handleShortcut("Travail") }
+
+        // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
+        binding.btnManageFavorites.setOnClickListener {
+            // On récupère l'objet sélectionné dans le Spinner
+            val position = binding.spinnerFavorites.selectedItemPosition
+            if (position > 0) { // Si ce n'est pas le header "Favoris..."
+                // ASTUCE : On doit récupérer la vraie liste des favoris stockée dans le ViewModel
+                // Pour faire simple ici, on va demander confirmation
+                val selectedName = binding.spinnerFavorites.selectedItem.toString()
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer $selectedName ?")
+                    .setMessage("Ce favori sera effacé définitivement.")
+                    .setPositiveButton("Supprimer") { _, _ ->
+                        // On lance une coroutine pour trouver et supprimer
+                        lifecycleScope.launch {
+                            val itemToDelete = savedAddressViewModel.getAddressByName(selectedName)
+                            if (itemToDelete != null) {
+                                savedAddressViewModel.deleteFavorite(itemToDelete)
+                                Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
+                                binding.spinnerFavorites.setSelection(0) // Reset
+                            }
+                        }
+                    }
+                    .setNegativeButton("Annuler", null)
+                    .show()
+            } else {
+                Toast.makeText(context, "Sélectionnez d'abord un favori dans la liste", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         binding.btnSearchGo.setOnClickListener {
             val address = binding.etSearch.text.toString()
             if (address.isNotEmpty()) {
@@ -98,7 +132,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             if (currentDestination != null && binding.btnSaveFavorite.tag != "saved") {
                 showSaveFavoriteDialog()
             } else {
-                Toast.makeText(context, "Déjà enregistré ou pas de destination", Toast.LENGTH_SHORT).show()
+                showSaveFavoriteDialog()
+                // Toast.makeText(context, "Déjà enregistré ou pas de destination", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -160,6 +195,61 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // Lancer la connexion OBD
         startObdConnection()
+    }
+
+    private fun handleShortcut(name: String) {
+        lifecycleScope.launch {
+            val shortcut = savedAddressViewModel.getAddressByName(name)
+            if (shortcut != null) {
+                // Si l'adresse existe, on y va
+                startNavigationTo("${shortcut.latitude},${shortcut.longitude}")
+                Toast.makeText(context, "Direction $name !", Toast.LENGTH_SHORT).show()
+            } else {
+                // Sinon, on propose de la créer
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "$name n'est pas défini", Toast.LENGTH_SHORT).show()
+                    showCreateShortcutDialog(name)
+                }
+            }
+        }
+    }
+
+    private fun showCreateShortcutDialog(name: String) {
+        val input = EditText(requireContext())
+        input.hint = "Adresse pour $name (ex: 10 rue...)"
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Définir $name")
+            .setView(input)
+            .setPositiveButton("Rechercher & Sauvegarder") { _, _ ->
+                val address = input.text.toString()
+                if (address.isNotEmpty()) {
+                    // On lance une recherche spéciale qui sauvegardera automatiquement
+                    searchAndSaveShortcut(address, name)
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun searchAndSaveShortcut(query: String, shortcutName: String) {
+        // Tu peux réutiliser la logique de searchAndNavigate mais en sauvegardant directement à la fin
+        // Version simplifiée :
+        lifecycleScope.launch(Dispatchers.IO) {
+            val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+            try {
+                val results = geocoder.getFromLocationName(query, 1)
+                if (results != null && results.isNotEmpty()) {
+                    val loc = results[0]
+                    savedAddressViewModel.addFavorite(shortcutName, loc.getAddressLine(0)?:query, loc.latitude, loc.longitude)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "$shortcutName enregistré !", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { Toast.makeText(context, "Adresse introuvable", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }
     }
 
     private fun showSaveFavoriteDialog() {
@@ -230,59 +320,73 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
-
-                // --- AMÉLIORATION : RECHERCHE LOCALE ---
-                // On récupère la position actuelle pour aider le Geocoder
                 val myPos = try { map?.myLocation } catch (e: Exception) { null }
 
-                val results: MutableList<android.location.Address>?
+                var results: MutableList<android.location.Address>? = null
 
+                // STRATÉGIE 1 : Recherche locale (Zone 50km)
                 if (myPos != null) {
-                    // On définit une zone de recherche (environ 50km autour de toi)
-                    // 1 degré de latitude ~= 111km. Donc 0.5 ~= 55km.
-                    val lowerLeftLat = myPos.latitude - 0.4
-                    val lowerLeftLong = myPos.longitude - 0.4
-                    val upperRightLat = myPos.latitude + 0.4
-                    val upperRightLong = myPos.longitude + 0.4
+                    val lat = myPos.latitude
+                    val lng = myPos.longitude
+                    // Tentative standard restreinte à la zone
+                    try {
+                        results = geocoder.getFromLocationName(query, 1, lat - 0.4, lng - 0.4, lat + 0.4, lng + 0.4)
+                    } catch (e: Exception) {}
 
-                    // Recherche avec contrainte de zone (API Android moderne)
-                    // Note: Si tu es sur une vieille version Android, cette méthode spécifique peut ne pas exister
-                    // mais getFromLocationName avec 4 doubles fonctionne depuis l'API 1.
-                    results = geocoder.getFromLocationName(query, 5, lowerLeftLat, lowerLeftLong, upperRightLat, upperRightLong)
-                } else {
-                    // Fallback si pas de GPS
-                    results = geocoder.getFromLocationName(query, 5)
+                    // STRATÉGIE 2 : Le "Hack" Ville (Si rien trouvé)
+                    // Si on cherche un magasin (ex: Aldi) sans préciser la ville, ça échoue souvent.
+                    // On récupère le nom de ta ville actuelle et on l'ajoute.
+                    if (results.isNullOrEmpty()) {
+                        try {
+                            // On demande à Google : "Dans quelle ville je suis ?"
+                            val myAddressInfo = geocoder.getFromLocation(lat, lng, 1)
+                            if (myAddressInfo != null && myAddressInfo.isNotEmpty()) {
+                                val myCity = myAddressInfo[0].locality // Ex: "Pirey"
+                                val newQuery = "$query $myCity"
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Tentative avec : $newQuery", Toast.LENGTH_SHORT).show()
+                                }
+                                results = geocoder.getFromLocationName(newQuery, 1)
+                            }
+                        } catch (e: Exception) {}
+                    }
                 }
 
+                // STRATÉGIE 3 : Recherche mondiale (Dernier recours)
+                if (results.isNullOrEmpty()) {
+                    results = geocoder.getFromLocationName(query, 1)
+                }
+
+                // --- TRAITEMENT DU RÉSULTAT ---
                 if (results != null && results.isNotEmpty()) {
-                    // On prend le premier résultat
                     val location = results[0]
                     val destinationCoords = "${location.latitude},${location.longitude}"
 
-                    // On sauvegarde les infos pour le bouton "Favori"
                     currentDestination = LatLng(location.latitude, location.longitude)
-                    currentAddressName = location.featureName ?: query // "Aldi" ou l'adresse
+                    currentAddressName = location.featureName ?: query
                     val fullAddress = location.getAddressLine(0) ?: query
 
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Trouvé : $fullAddress", Toast.LENGTH_SHORT).show()
-
-                        // Si c'est un résultat vague (ex: juste une ville), on zoome dessus
-                        // Sinon on trace la route
+                        Toast.makeText(context, "Go : $fullAddress", Toast.LENGTH_SHORT).show()
                         startNavigationTo(destinationCoords)
 
-                        // On prépare le bouton favori (Étoile vide par défaut)
+                        // Reset bouton favori
                         binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_off)
-                        binding.btnSaveFavorite.tag = "unsaved" // Petit marqueur pour savoir l'état
+                        binding.btnSaveFavorite.tag = "unsaved"
+
+                        // On cache le clavier et la recherche pour voir la carte
+                        val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                        imm.hideSoftInputFromWindow(view?.windowToken, 0)
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Introuvable dans le coin 😕", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Aucun résultat pour '$query' 😕", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Erreur recherche: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Erreur réseau/geocoder", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -332,7 +436,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                                 .target(currentLatLng)
                                 .zoom(18f)
                                 .bearing(location.bearing)
-                                .tilt(60f)
+                                .tilt(0f)
                                 .build()
                         )
                         map?.animateCamera(cameraUpdate)

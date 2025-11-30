@@ -13,4 +13,7 @@ interface SavedAddressDao {
 
     @Delete
     suspend fun delete(address: SavedAddress)
+
+    @Query("SELECT * FROM saved_addresses WHERE name = :name LIMIT 1")
+    suspend fun getByName(name: String): SavedAddress?
 }

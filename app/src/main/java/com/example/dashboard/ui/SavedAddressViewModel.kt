@@ -28,4 +28,16 @@ class SavedAddressViewModel(application: Application) : AndroidViewModel(applica
             dao.insert(newFav)
         }
     }
+
+    fun deleteFavorite(address: SavedAddress) {
+        viewModelScope.launch {
+            dao.delete(address)
+        }
+    }
+
+    // Fonction helper pour trouver Domicile/Travail
+    suspend fun getAddressByName(name: String): SavedAddress? {
+        // Note: Il faut ajouter cette Query dans le DAO : @Query("SELECT * FROM saved_addresses WHERE name = :name LIMIT 1")
+        return dao.getByName(name) // Supposons que tu ajoutes cette méthode au DAO
+    }
 }

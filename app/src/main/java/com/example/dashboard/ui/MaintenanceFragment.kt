@@ -112,7 +112,10 @@ class MaintenanceFragment : Fragment() {
                 val lastKm = lastKmStr.toDoubleOrNull() ?: 0.0
 
                 val id = itemToEdit?.id ?: 0
-                viewModel.saveItem(id, name, interval, lastKm)
+                // ... tes validations ...
+                // Ajoute un champ pour les mois dans ta modale, ou mets 0 par défaut en attendant
+                val months = 0
+                viewModel.saveItem(id, name, interval, months, lastKm) // Appel corrigé avec le paramètre mois
             }
             .setNegativeButton("Annuler", null)
 

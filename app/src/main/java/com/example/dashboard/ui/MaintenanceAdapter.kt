@@ -7,8 +7,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.dashboard.databinding.ItemMaintenanceBinding
 import android.content.res.ColorStateList
+import com.example.dashboard.data.MaintenanceUiState
 
-// Ajout du paramètre 'onItemClicked' dans le constructeur
 class MaintenanceAdapter(
     private val onItemClicked: (MaintenanceUiState) -> Unit
 ) : ListAdapter<MaintenanceUiState, MaintenanceAdapter.ViewHolder>(DiffCallback()) {
@@ -27,11 +27,9 @@ class MaintenanceAdapter(
 
     class ViewHolder(private val binding: ItemMaintenanceBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(state: MaintenanceUiState) {
-            // ... (Ton code existant de binding ne change pas) ...
             binding.tvName.text = state.item.name
-            // ... copie le reste de ton bind() ici ...
 
-            // Juste pour rappel des couleurs si tu avais oublié :
+            // Formatage propre du texte restant
             if (state.remainingKm < 0) {
                 binding.tvRemaining.text = "DÉPASSÉ de ${-state.remainingKm.toInt()} km !"
                 binding.tvRemaining.setTextColor(0xFFFF5252.toInt())
