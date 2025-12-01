@@ -43,6 +43,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private var _binding: FragmentDashboardBinding? = null
     private val binding get() = _binding!!
     private var map: GoogleMap? = null
+
+    private var currentFavoritesList: List<com.example.dashboard.data.SavedAddress> = emptyList()
     private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
     private var locationCallback: com.google.android.gms.location.LocationCallback? = null
     private var isTrackingMode = true
@@ -51,6 +53,58 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private val savedAddressViewModel: SavedAddressViewModel by viewModels()
     private var currentDestination: LatLng? = null
     private var currentAddressName: String = ""
+
+    private var lastRecalculationLocation: android.location.Location? = null
+
+    // Pour gérer la boucle de rafraichissement
+    private val navigationHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var isNavigationActive = false
+    private val REFRESH_INTERVAL = 45000L // 45 secondes (Bon compromis)
+
+    private val navigationRunnable = object : Runnable {
+        override fun run() {
+            if (isNavigationActive && currentDestinationCoords != null) {
+                // On récupère la position actuelle via la map (ou via ta variable lastLocation)
+                val myLoc = try { map?.myLocation } catch (e: Exception) { null }
+
+                // LOGIQUE INTELLIGENTE
+                var shouldRefresh = false
+
+                if (myLoc != null) {
+                    if (lastRecalculationLocation == null) {
+                        shouldRefresh = true // Premier lancement
+                    } else {
+                        val distance = myLoc.distanceTo(lastRecalculationLocation!!) // en mètres
+                        // Si on a bougé de plus de 100m (on avance)
+                        // OU si on a bougé de plus de 30m ET qu'on est à une intersection (difficile à savoir, donc on fait au temps court)
+                        if (distance > 100) {
+                            shouldRefresh = true
+                        }
+                    }
+                }
+
+                if (shouldRefresh) {
+                    startNavigationTo(currentDestinationCoords!!)
+                    // On convertit LatLng en Location pour la mémoire
+                    val loc = android.location.Location("memory")
+                    loc.latitude = myLoc?.latitude ?: 0.0
+                    loc.longitude = myLoc?.longitude ?: 0.0
+                    lastRecalculationLocation = loc
+
+                    // Prochain check dans 30 secondes (plus fréquent pour vérifier le mouvement)
+                    navigationHandler.postDelayed(this, 30000L)
+                } else {
+                    // On n'a pas bougé (bouchon), on ne spamme pas l'API.
+                    // On revérifie dans 10 secondes si ça s'est débloqué
+                    android.util.Log.d("GPS", "Bouchon détecté ou arrêt : pas de recalcul.")
+                    navigationHandler.postDelayed(this, 10000L)
+                }
+            }
+        }
+    }
+
+    // Pour mémoriser où on va
+    private var currentDestinationCoords: String? = null
     private val client = OkHttpClient()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -78,24 +132,40 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         binding.btnManageFavorites.setOnClickListener {
             val position = binding.spinnerFavorites.selectedItemPosition
             if (position > 0) {
-                val selectedName = binding.spinnerFavorites.selectedItem.toString()
+                // position - 1 car l'index 0 est le titre "Favoris..."
+                // On récupère l'objet directement depuis notre liste locale, c'est FIABLE.
+                val itemToDelete = currentFavoritesList[position - 1]
+
                 AlertDialog.Builder(requireContext())
-                    .setTitle("Supprimer $selectedName ?")
-                    .setMessage("Ce favori sera effacé définitivement.")
-                    .setPositiveButton("Supprimer") { _, _ ->
-                        lifecycleScope.launch {
-                            val itemToDelete = savedAddressViewModel.getAddressByName(selectedName)
-                            if (itemToDelete != null) {
-                                savedAddressViewModel.deleteFavorite(itemToDelete)
-                                Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
-                                binding.spinnerFavorites.setSelection(0)
-                            }
-                        }
+                    .setTitle("Supprimer ${itemToDelete.name} ?")
+                    .setPositiveButton("Oui") { _, _ ->
+                        savedAddressViewModel.deleteFavorite(itemToDelete)
+                        Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
+                        binding.spinnerFavorites.setSelection(0)
                     }
-                    .setNegativeButton("Annuler", null)
+                    .setNegativeButton("Non", null)
                     .show()
-            } else {
-                Toast.makeText(context, "Sélectionnez d'abord un favori dans la liste", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnUpdateFavorites.setOnClickListener {
+            val position = binding.spinnerFavorites.selectedItemPosition
+            if (position > 0) {
+                val itemToEdit = currentFavoritesList[position - 1]
+
+                // Ouvre une modale avec un champ texte pré-rempli
+                val input = EditText(requireContext())
+                input.setText(itemToEdit.name)
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Renommer")
+                    .setView(input)
+                    .setPositiveButton("OK") { _, _ ->
+                        val newName = input.text.toString()
+                        // Tu dois ajouter une fonction updateFavorite dans ton ViewModel
+                        // savedAddressViewModel.updateFavoriteName(itemToEdit, newName)
+                    }
+                    .show()
             }
         }
 
@@ -118,9 +188,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         lifecycleScope.launch {
             savedAddressViewModel.savedAddresses.collect { savedList ->
-                val spinnerItems = mutableListOf("❤  Mes Favoris...")
+                currentFavoritesList = savedList
+                val spinnerItems = mutableListOf("fav...")
                 spinnerItems.addAll(savedList.map { it.name })
-                val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, spinnerItems)
+                val adapter = android.widget.ArrayAdapter(requireContext(), R.layout.spinner_item, spinnerItems)
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                 binding.spinnerFavorites.adapter = adapter
                 binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
@@ -154,6 +226,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         binding.btnClearRoute.setOnClickListener {
             map?.clear()
             binding.cardTripInfo.visibility = View.GONE
+            isNavigationActive = false // Coupe le circuit
+            navigationHandler.removeCallbacks(navigationRunnable) // Arrête le chrono
+            currentDestinationCoords = null
+
+            // Remet le suivi standard
             isTrackingMode = true
         }
 
@@ -337,6 +414,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             Toast.makeText(context, "Mode Suivi activé", Toast.LENGTH_SHORT).show()
             false
         }
+
+        map?.setPadding(0, 500, 0, 0)
+
         startLocationUpdates()
     }
 
@@ -350,21 +430,27 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 for (location in locationResult.locations) {
                     if (map != null && isTrackingMode) {
                         val currentLatLng = LatLng(location.latitude, location.longitude)
+                        val bearing = if (location.hasBearing() && location.speed > 2) {
+                            location.bearing
+                        } else {
+                            map!!.cameraPosition.bearing // On garde la dernière connue
+                        }
                         val cameraUpdate = CameraUpdateFactory.newCameraPosition(
                             CameraPosition.Builder()
                                 .target(currentLatLng)
-                                .zoom(17f)
-                                .bearing(location.bearing)
+                                .zoom(16.5f)
+                                .bearing(bearing)
                                 .tilt(0f)
                                 .build()
                         )
                         map?.animateCamera(cameraUpdate)
+                        updateTripInfo(location)
                     }
                     if (lastLocation != null) {
                         val distanceInMeters = location.distanceTo(lastLocation!!)
                         if (distanceInMeters > 2) {
                             val distanceInKm = distanceInMeters / 1000.0
-                            profileViewModel.addDistanceToProfile(distanceInKm)
+                            profileViewModel.addDistanceToProfile(distanceInKm, requireContext())
                         }
                     }
                     lastLocation = location
@@ -374,7 +460,54 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback!!, android.os.Looper.getMainLooper())
     }
 
+    private fun updateTripInfo(currentLocation: Location) {
+        if (currentDestination != null && binding.cardTripInfo.visibility == View.VISIBLE) {
+            val destLoc = Location("dest")
+            destLoc.latitude = currentDestination!!.latitude
+            destLoc.longitude = currentDestination!!.longitude
+
+            // Distance restante en mètres
+            val distanceMeters = currentLocation.distanceTo(destLoc)
+
+            // Affichage Distance
+            val distKm = distanceMeters / 1000.0
+            binding.tvTripDistance.text = String.format("%.1f km", distKm)
+
+            // Estimation Temps (Basique : Moyenne 50km/h en ville/mixte)
+            // Temps = Distance / Vitesse.
+            // Vitesse actuelle (m/s). Si arrêt (0), on suppose 50km/h (13.8 m/s)
+            val speed = if (currentLocation.hasSpeed() && currentLocation.speed > 2) currentLocation.speed else 13.8f
+            val timeSeconds = distanceMeters / speed
+            val minutes = (timeSeconds / 60).toInt()
+
+            // Formatage propre (Heures / Minutes)
+            if (minutes > 60) {
+                val h = minutes / 60
+                val m = minutes % 60
+                binding.tvTripTime.text = "${h}h ${m}min"
+            } else {
+                binding.tvTripTime.text = "$minutes min"
+            }
+
+            // Détection arrivée (si moins de 50m)
+            if (distanceMeters < 50) {
+                binding.tvTripTime.text = "Arrivé !"
+                binding.tvTripTime.setTextColor(Color.GREEN)
+                // Tu pourrais ici arrêter la navigation automatiquement
+            }
+        }
+    }
+
     private fun startNavigationTo(destination: String) {
+        currentDestinationCoords = destination
+
+        // Si c'est la PREMIÈRE fois qu'on lance (pas un refresh auto), on active la boucle
+        if (!isNavigationActive) {
+            isNavigationActive = true
+            navigationHandler.post(navigationRunnable) // Lance la boucle
+            binding.btnClearRoute.visibility = View.VISIBLE
+            binding.cardTripInfo.visibility = View.VISIBLE
+        }
         val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null } ?: return
         val origin = "${currentLoc.latitude},${currentLoc.longitude}"
         val apiKey = getString(R.string.google_maps_key)
@@ -443,6 +576,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     override fun onDestroyView() {
+        navigationHandler.removeCallbacks(navigationRunnable)
         super.onDestroyView()
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         _binding = null

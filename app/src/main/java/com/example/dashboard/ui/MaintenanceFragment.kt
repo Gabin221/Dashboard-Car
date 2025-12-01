@@ -18,6 +18,22 @@ import kotlinx.coroutines.launch
 class MaintenanceFragment : Fragment() {
 
     private var _binding: FragmentMaintenanceBinding? = null
+
+    private val openFileLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            // Lecture du fichier
+            try {
+                val inputStream = requireContext().contentResolver.openInputStream(it)
+                val jsonString = inputStream?.bufferedReader().use { reader -> reader?.readText() }
+                if (jsonString != null) {
+                    viewModel.importBackupJson(jsonString) // Appelle la fonction qu'on a vue hier
+                    android.widget.Toast.makeText(context, "Import réussi !", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "Erreur lecture fichier", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     private val binding get() = _binding!!
 
     // On lie le ViewModel
@@ -56,7 +72,11 @@ class MaintenanceFragment : Fragment() {
 
         // 4. Bouton Export
         binding.fabExport.setOnClickListener {
-            viewModel.exportData(requireContext())
+            viewModel.exportBackupJson(requireContext())
+        }
+
+        binding.fabImport.setOnClickListener {
+            openFileLauncher.launch(arrayOf("application/json"))
         }
     }
 

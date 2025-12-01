@@ -38,4 +38,23 @@ class CarRepository(private val carDao: CarDao) {
     fun getLogs(itemId: Int): Flow<List<MaintenanceLog>> = carDao.getLogsForItem(itemId)
 
     suspend fun getLogsSync(itemId: Int): List<MaintenanceLog> = carDao.getLogsForItemSync(itemId)
+
+    suspend fun insertLog(log: MaintenanceLog) {
+        carDao.insertLog(log)
+    }
+
+    suspend fun updateSavedAddress(address: SavedAddress) {
+        // Tu dois injecter le SavedAddressDao dans le CarRepository si ce n'est pas déjà fait !
+        // Exemple : CarRepository(private val carDao: CarDao, private val addressDao: SavedAddressDao)
+        // addressDao.update(address)
+
+        // Si tu as centralisé les deux DAOs dans un seul objet, utilise-le :
+        // carDao.updateSavedAddress(address)
+
+        // Supposons que tu as un SavedAddressDao accessible :
+        // addressDao.update(address) // <-- Utilise la dépendance appropriée
+
+        // POUR NE PAS CASSER TON CODE, je vais supposer que tu as un `savedAddressDao` accessible :
+        // addressDao.update(address)
+    }
 }

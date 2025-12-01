@@ -40,4 +40,15 @@ class SavedAddressViewModel(application: Application) : AndroidViewModel(applica
         // Note: Il faut ajouter cette Query dans le DAO : @Query("SELECT * FROM saved_addresses WHERE name = :name LIMIT 1")
         return dao.getByName(name) // Supposons que tu ajoutes cette méthode au DAO
     }
+
+//    fun updateFavoriteName(oldItem: SavedAddress, newName: String) {
+//        viewModelScope.launch {
+//            if (newName.isNotBlank() && newName != oldItem.name) {
+//                // Crée une copie de l'objet avec le nouveau nom
+//                val updatedItem = oldItem.copy(name = newName)
+//
+//                repository.updateSavedAddress(updatedItem)
+//            }
+//        }
+//    }
 }
