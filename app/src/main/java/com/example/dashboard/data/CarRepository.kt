@@ -3,7 +3,7 @@ package com.example.dashboard.data
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 
-class CarRepository(private val carDao: CarDao) {
+class CarRepository(private val carDao: CarDao, private val addressDao: SavedAddressDao) {
 
     // Flux de données
     val carProfile: Flow<CarProfile?> = carDao.getProfile()
@@ -55,6 +55,6 @@ class CarRepository(private val carDao: CarDao) {
         // addressDao.update(address) // <-- Utilise la dépendance appropriée
 
         // POUR NE PAS CASSER TON CODE, je vais supposer que tu as un `savedAddressDao` accessible :
-        // addressDao.update(address)
+        addressDao.update(address)
     }
 }

@@ -21,19 +21,20 @@ class MaintenanceFragment : Fragment() {
 
     private val openFileLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
-            // Lecture du fichier
+            // Lecture du fichier (nécessite la permission de lecture pour le URI)
             try {
                 val inputStream = requireContext().contentResolver.openInputStream(it)
                 val jsonString = inputStream?.bufferedReader().use { reader -> reader?.readText() }
                 if (jsonString != null) {
-                    viewModel.importBackupJson(jsonString) // Appelle la fonction qu'on a vue hier
-                    android.widget.Toast.makeText(context, "Import réussi !", android.widget.Toast.LENGTH_SHORT).show()
+                    viewModel.importBackupJson(jsonString) // C'est la fonction du ViewModel qui fait le travail
+                    android.widget.Toast.makeText(context, "Import réussi ! Redémarrez l'appli pour être sûr.", android.widget.Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "Erreur lecture fichier", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, "Erreur lecture fichier: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
+
     private val binding get() = _binding!!
 
     // On lie le ViewModel

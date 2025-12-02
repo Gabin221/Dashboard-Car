@@ -14,7 +14,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         val db = AppDatabase.getDatabase(application)
-        repository = CarRepository(db.carDao())
+        repository = CarRepository(db.carDao(), db.savedAddressDao())
     }
 
     suspend fun getCurrentProfile(): CarProfile? {

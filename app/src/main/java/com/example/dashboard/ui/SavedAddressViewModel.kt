@@ -41,6 +41,27 @@ class SavedAddressViewModel(application: Application) : AndroidViewModel(applica
         return dao.getByName(name) // Supposons que tu ajoutes cette méthode au DAO
     }
 
+    suspend fun updateAddress(address: SavedAddress) {
+        dao.updateAddress(address)
+    }
+
+    // Fonction pour sauvegarder/mettre à jour (utile pour la création et la modification)
+    suspend fun saveAddress(address: SavedAddress) {
+        dao.insert(address) // Si l'adresse a un ID, la fonction insert va la remplacer.
+    }
+
+    fun updateFavoriteName(item: SavedAddress, newName: String) {
+        viewModelScope.launch {
+            if (newName.isNotBlank()) {
+                // Crée une nouvelle instance avec le nouveau nom
+                val updatedItem = item.copy(name = newName)
+                dao.updateAddress(updatedItem)
+                // Note: Si vous n'avez pas de fonction updateAddress dans le repository,
+                // utilisez repository.saveAddress(updatedItem) si saveAddress est configuré en REPLACE.
+            }
+        }
+    }
+
 //    fun updateFavoriteName(oldItem: SavedAddress, newName: String) {
 //        viewModelScope.launch {
 //            if (newName.isNotBlank() && newName != oldItem.name) {

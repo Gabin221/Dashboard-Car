@@ -25,7 +25,7 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         val db = AppDatabase.getDatabase(application)
-        repository = CarRepository(db.carDao())
+        repository = CarRepository(db.carDao(), db.savedAddressDao())
     }
 
     val maintenanceListState = combine(

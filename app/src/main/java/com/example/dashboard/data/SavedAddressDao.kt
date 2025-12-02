@@ -19,4 +19,7 @@ interface SavedAddressDao {
 
     @Update
     suspend fun update(address: SavedAddress)
+
+    @Update
+    suspend fun updateAddress(address: SavedAddress)
 }

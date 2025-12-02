@@ -128,6 +128,16 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         binding.btnHome.setOnClickListener { handleShortcut("Domicile") }
         binding.btnWork.setOnClickListener { handleShortcut("Travail") }
 
+        binding.btnSaveCurrent.setOnClickListener {
+            // map?.myLocation est l'accès le plus fiable à la dernière position connue par la map
+            val lastLocation = map?.myLocation
+            if (lastLocation == null) {
+                Toast.makeText(context, "Position GPS introuvable. Activez le suivi.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            showSaveLocationDialog(lastLocation.latitude, lastLocation.longitude)
+        }
+
         // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
         binding.btnManageFavorites.setOnClickListener {
             val position = binding.spinnerFavorites.selectedItemPosition
@@ -251,6 +261,27 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    private fun showSaveLocationDialog(lat: Double, lon: Double) {
+        val input = EditText(requireContext())
+        // Nom par défaut
+        input.setText("Position Sauvée ${java.text.SimpleDateFormat("HH:mm").format(java.util.Date())}")
+
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Nommer le Favori")
+            .setView(input)
+            .setPositiveButton("Enregistrer") { _, _ ->
+                val name = input.text.toString().trim()
+                val address = input.text.toString()
+                if (name.isNotBlank()) {
+                    // Appel au ViewModel pour la sauvegarde
+                    savedAddressViewModel.addFavorite(name, address, lat, lon)
+                    Toast.makeText(context, "$name ajouté aux favoris.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
     }
 
     private fun showCreateShortcutDialog(name: String) {
