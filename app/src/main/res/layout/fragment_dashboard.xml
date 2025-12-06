@@ -24,7 +24,7 @@
             android:layout_height="match_parent"
             android:padding="10dp">
 
-            <!-- MAP -->
+            <!-- MAP (plein écran dans la CardView) -->
             <androidx.fragment.app.FragmentContainerView
                 android:id="@+id/map_fragment"
                 android:name="com.google.android.gms.maps.SupportMapFragment"
@@ -33,92 +33,162 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHeight_percent="0.5" />
+                app:layout_constraintBottom_toTopOf="@id/search_container" />
 
-            <!-- INFOS TRAJET -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/card_trip_info"
+            <LinearLayout
+                android:id="@+id/search_and_trip_info_container"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="8dp"
-                android:visibility="gone"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="10dp"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="@drawable/bg_rounded_white_80"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent">
+
+                <!-- LOUPE + CHAMP DE RECHERCHE -->
+                <ImageButton
+                    android:id="@+id/btn_search"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:src="@android:drawable/ic_search_category_default"
+                    android:background="?selectableItemBackgroundBorderless" />
+
+            </LinearLayout>
+
+            <!-- INFOS TRAJET (masqué par défaut) -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_trip_info"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="12dp"
+                android:clipToPadding="false"
+                android:padding="12dp"
+                android:visibility="gone"
+                android:alpha="0.95"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="6dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/search_container">
+
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-                    <TextView
-                        android:id="@+id/tv_trip_time"
-                        android:text="--"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
-                    <TextView
-                        android:id="@+id/tv_trip_distance"
-                        android:text="--"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
-                    <ImageButton
-                        android:id="@+id/btn_clear_route"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:src="@android:drawable/ic_menu_close_clear_cancel"/>
+                    android:gravity="center_vertical"
+                    android:weightSum="3"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="start|center_vertical"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:src="@drawable/ic_time"
+                            android:tint="#555"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="6dp"/>
+
+                        <TextView
+                            android:id="@+id/tv_trip_time"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#333"
+                            android:text="--"
+                            android:layout_height="wrap_content"
+                            android:layout_width="wrap_content"/>
+                    </LinearLayout>
+
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:src="@drawable/ic_route"
+                            android:tint="#555"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="6dp"/>
+
+                        <TextView
+                            android:id="@+id/tv_trip_distance"
+                            android:textSize="16sp"
+                            android:text="--"
+                            android:textColor="#333"
+                            android:layout_height="wrap_content"
+                            android:layout_width="wrap_content"/>
+                    </LinearLayout>
+
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="end|center_vertical"
+                        android:layout_weight="1"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:src="@drawable/ic_pin"
+                            android:tint="#555"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="6dp"/>
+
+                        <TextView
+                            android:id="@+id/tv_trip_end"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#333"
+                            android:text="--"
+                            android:layout_height="wrap_content"
+                            android:layout_width="wrap_content"/>
+                    </LinearLayout>
+
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- FAVORIS -->
+
+            <!-- BOUTONS FAVORIS (en haut à droite, superposés verticalement) -->
             <LinearLayout
-                android:id="@+id/favorites_container"
-                android:layout_width="0dp"
+                android:id="@+id/favorites_buttons_container"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="#E0E0E0"
+                android:orientation="vertical"
                 android:padding="4dp"
-                android:gravity="center_vertical"
-                android:elevation="10dp"
-                app:layout_constraintTop_toBottomOf="@id/map_fragment"
-                app:layout_constraintStart_toStartOf="parent"
+                android:background="@drawable/bg_rounded_white_80"
+                app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
-                <ImageButton
-                    android:id="@+id/btn_home"
+                <!-- Bouton "Mes Favoris" -->
+                <Button
+                    android:id="@+id/btn_open_favorites"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:src="@android:drawable/ic_menu_myplaces"
-                    app:tint="#4CAF50"
-                    android:background="?selectableItemBackgroundBorderless"/>
+                    android:text="📂"
+                    android:textSize="18sp"
+                    android:gravity="center"
+                    android:backgroundTint="#555555"
+                    style="@style/Widget.MaterialComponents.Button.Icon" />
 
-                <ImageButton
-                    android:id="@+id/btn_work"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:src="@android:drawable/ic_menu_agenda"
-                    app:tint="#2196F3"
-                    android:background="?selectableItemBackgroundBorderless"/>
-
+                <!-- Bouton "+" pour sauvegarder la position actuelle -->
                 <ImageButton
                     android:id="@+id/btn_save_current"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
+                    android:layout_marginTop="8dp"
                     android:src="@android:drawable/ic_menu_add"
                     app:tint="#00BCD4"
-                    android:background="?selectableItemBackgroundBorderless"/>
-
-                <Button
-                    android:id="@+id/btn_open_favorites"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="📂 Mes Favoris"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#555555"
-                    android:layout_marginStart="8dp"
-                    style="@style/Widget.MaterialComponents.Button"/>
+                    android:background="?selectableItemBackgroundBorderless" />
             </LinearLayout>
 
-            <!-- RECHERCHE -->
             <LinearLayout
                 android:id="@+id/search_container"
                 android:layout_width="0dp"
@@ -126,10 +196,10 @@
                 android:orientation="horizontal"
                 android:padding="8dp"
                 android:background="#333333"
-                app:layout_constraintTop_toBottomOf="@id/favorites_container"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
-
                 <EditText
                     android:id="@+id/et_search"
                     android:layout_width="0dp"
@@ -140,7 +210,6 @@
                     android:textColorHint="#AAA"
                     android:backgroundTint="#FFF"
                     android:maxLines="1"/>
-
                 <Button
                     android:id="@+id/btn_search_go"
                     android:layout_width="wrap_content"
@@ -148,8 +217,8 @@
                     android:text="GO"
                     android:backgroundTint="#2196F3"/>
             </LinearLayout>
-
         </androidx.constraintlayout.widget.ConstraintLayout>
+
     </androidx.cardview.widget.CardView>
 
     <androidx.cardview.widget.CardView

@@ -37,6 +37,8 @@ import android.location.Geocoder
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class DashboardFragment : Fragment(), OnMapReadyCallback {
@@ -125,8 +127,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch { ObdManager.currentData2.collect { binding.tvData2.text = it.toString() } }
 
         // 1. GESTION DES BOUTONS MAISON / TRAVAIL
-        binding.btnHome.setOnClickListener { handleShortcut("Domicile") }
-        binding.btnWork.setOnClickListener { handleShortcut("Travail") }
+//        binding.btnHome.setOnClickListener { handleShortcut("Domicile") }
+//        binding.btnWork.setOnClickListener { handleShortcut("Travail") }
 
         binding.btnSaveCurrent.setOnClickListener {
             // map?.myLocation est l'accès le plus fiable à la dernière position connue par la map
@@ -140,6 +142,18 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
         // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
         // ... (code précédent de création de l'adapter) ...
+
+        binding.btnSearch.setOnClickListener {
+            if (binding.searchContainer.visibility == View.GONE) {
+                binding.searchContainer.alpha = 0f
+                binding.searchContainer.visibility = View.VISIBLE
+                binding.searchContainer.animate().alpha(1f).setDuration(300).start()
+            } else {
+                binding.searchContainer.animate().alpha(0f).setDuration(300).withEndAction {
+                    binding.searchContainer.visibility = View.GONE
+                }.start()
+            }
+        }
 
         binding.btnSearchGo.setOnClickListener {
             val address = binding.etSearch.text.toString()
@@ -162,24 +176,12 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             savedAddressViewModel.savedAddresses.collect { savedList ->
                 currentFavoritesList = savedList
                 // On met à jour le texte du bouton pour faire joli (optionnel)
-                binding.btnOpenFavorites.text = "📂  Mes Favoris (${savedList.size})"
+                //binding.btnOpenFavorites.text = "📂  Mes Favoris (${savedList.size})"
             }
         }
 
         binding.btnOpenFavorites.setOnClickListener {
             showFavoritesListDialog()
-        }
-
-        // Clic sur la croix -> Efface le trajet
-        binding.btnClearRoute.setOnClickListener {
-            map?.clear()
-            binding.cardTripInfo.visibility = View.GONE
-            isNavigationActive = false // Coupe le circuit
-            navigationHandler.removeCallbacks(navigationRunnable) // Arrête le chrono
-            currentDestinationCoords = null
-
-            // Remet le suivi standard
-            isTrackingMode = true
         }
 
         // Lancer la connexion OBD
@@ -543,6 +545,16 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 binding.tvTripTime.text = "$minutes min"
             }
 
+            val now = System.currentTimeMillis()
+            val arrivalTimeMillis = now + (timeSeconds * 1000L)
+
+            val dateFormat = SimpleDateFormat("HH'h'mm", Locale.getDefault())
+            val arrivalFormatted = dateFormat.format(Date(arrivalTimeMillis.toLong()))
+
+            // SimpleDateFormat("HH'h'mm", Locale.getDefault()).format(Date((System.currentTimeMillis() + (timeSeconds * 1000L)).toLong()))
+
+            binding.tvTripEnd.text = arrivalFormatted
+
             // Détection arrivée (si moins de 50m)
             if (distanceMeters < 50) {
                 binding.tvTripTime.text = "Arrivé !"
@@ -559,7 +571,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         if (!isNavigationActive) {
             isNavigationActive = true
             navigationHandler.post(navigationRunnable) // Lance la boucle
-            binding.btnClearRoute.visibility = View.VISIBLE
             binding.cardTripInfo.visibility = View.VISIBLE
         }
         val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null } ?: return
@@ -582,12 +593,17 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                         val leg = legs.getJSONObject(0)
                         val distanceText = leg.getJSONObject("distance").getString("text")
                         val durationText = leg.getJSONObject("duration").getString("text")
+                        val durationSeconds = leg.getJSONObject("duration").getLong("value")
+                        val endText = SimpleDateFormat("HH'h'mm", Locale.getDefault()).format(Date(System.currentTimeMillis() + (durationSeconds * 1000L)))
+
                         withContext(Dispatchers.Main) {
                             drawRouteOnMap(decodedPath)
                             binding.cardTripInfo.visibility = View.VISIBLE
                             binding.tvTripDistance.text = distanceText
                             binding.tvTripTime.text = durationText
+                            binding.tvTripEnd.text = endText
                         }
+                        binding.searchContainer.visibility = View.GONE
                     }
                 }
             } catch (e: Exception) { e.printStackTrace() }
