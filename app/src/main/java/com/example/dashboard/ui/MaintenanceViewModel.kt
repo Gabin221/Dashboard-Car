@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.example.dashboard.data.MaintenanceUiState
 import com.example.dashboard.data.SavedAddress
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -117,6 +118,95 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
             }
             context.startActivity(android.content.Intent.createChooser(intent, "Sauvegarder la BDD"))
         }
+    }
+
+    // Génère une chaîne de caractères contenant tout le rapport HTML
+    suspend fun generateHtmlReport(): String {
+        val items = repository.maintenanceItems.first()
+        val sb = StringBuilder()
+
+        sb.append("<html><head><style>")
+        sb.append("body { font-family: sans-serif; padding: 20px; }")
+        sb.append("h1 { color: #333; }")
+        sb.append(".item { border: 1px solid #ddd; margin-bottom: 20px; padding: 10px; border-radius: 8px; }")
+        sb.append(".header { background-color: #f2f2f2; padding: 10px; font-weight: bold; }")
+        sb.append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }")
+        sb.append("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }")
+        sb.append("th { background-color: #4CAF50; color: white; }")
+        sb.append("</style></head><body>")
+
+        sb.append("<h1>🚙 Carnet d'Entretien - Peugeot 206+</h1>")
+        sb.append("<p>Exporté le : ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(java.util.Date())}</p>")
+
+        items.forEach { item ->
+            sb.append("<div class='item'>")
+            sb.append("<div class='header'>🔧 ${item.name} (Intervalle: ${item.intervalKm} km)</div>")
+
+            // Récupération des logs
+            val logs = repository.getLogsSync(item.id)
+
+            if (logs.isNotEmpty()) {
+                sb.append("<table><tr><th>Date</th><th>Kilométrage</th><th>Commentaire</th></tr>")
+                logs.sortedByDescending { it.dateDone }.forEach { log ->
+                    val date = java.text.SimpleDateFormat("dd/MM/yy").format(log.dateDone)
+                    sb.append("<tr>")
+                    sb.append("<td>$date</td>")
+                    sb.append("<td><b>${log.kmDone.toInt()} km</b></td>")
+                    sb.append("<td>${log.comment}</td>")
+                    sb.append("</tr>")
+                }
+                sb.append("</table>")
+            } else {
+                sb.append("<p><i>Aucun historique pour cet élément.</i></p>")
+            }
+            sb.append("</div>")
+        }
+        sb.append("</body></html>")
+        return sb.toString()
+    }
+
+    // In app/src/main/java/com/example/dashboard/ui/MaintenanceViewModel.kt
+
+    suspend fun generateJsonReport(): String {
+        val items = repository.maintenanceItems.first()
+        val exportDate = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(java.util.Date())
+
+        // --- FIX STARTS HERE ---
+        // Initialize an empty MutableMap first to avoid "Argument type mismatch"
+        val report = mutableMapOf<String, Any>()
+
+        report["meta"] = mapOf(
+            "title" to "Carnet d'Entretien - Peugeot 206+",
+            "exportDate" to exportDate,
+            "vehicle" to "Peugeot 206+"
+        )
+
+        report["items"] = mutableListOf<Map<String, Any>>()
+        // --- FIX ENDS HERE ---
+
+        // Pour chaque item, on construit une entrée JSON
+        items.forEach { item ->
+            val logs = repository.getLogsSync(item.id)
+            val itemLogs = logs.sortedByDescending { it.dateDone }.map { log ->
+                mapOf(
+                    "date" to java.text.SimpleDateFormat("dd/MM/yy").format(log.dateDone),
+                    "km" to log.kmDone.toInt(),
+                    "comment" to (log.comment ?: "")
+                )
+            }
+
+            val itemEntry = mutableMapOf(
+                "name" to item.name,
+                "intervalKm" to item.intervalKm,
+                "lastServiceKm" to item.lastServiceKm.toInt(),
+                "logs" to if (itemLogs.isNotEmpty()) itemLogs else listOf(mapOf("info" to "Aucun historique pour cet élément."))
+            )
+            // This cast will now work correctly
+            (report["items"] as MutableList<Map<String, Any>>).add(itemEntry)
+        }
+
+        // Conversion en JSON (exemple avec Gson)
+        return Gson().toJson(report)
     }
 
     fun importBackupJson(jsonString: String) {

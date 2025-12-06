@@ -35,6 +35,55 @@ class MaintenanceFragment : Fragment() {
         }
     }
 
+    // Permet de créer un fichier (Sauvegarder sous...)
+    private val saveReportLauncherHtml = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/html")) { uri ->
+        uri?.let { destinationUri ->
+            lifecycleScope.launch {
+                try {
+                    // 1. On demande le contenu au ViewModel
+                    val htmlContent = viewModel.generateHtmlReport()
+
+                    // 2. On écrit dans le fichier choisi par l'utilisateur
+                    requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
+                        output.write(htmlContent.toByteArray())
+                    }
+                    android.widget.Toast.makeText(context, "Rapport enregistré avec succès !", android.widget.Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Erreur sauvegarde: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private val saveReportLauncherJson = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let { destinationUri ->
+            lifecycleScope.launch {
+                try {
+                    // 1. On demande le contenu au ViewModel (au format JSON cette fois)
+                    val jsonContent = viewModel.generateJsonReport()
+                    // 2. On écrit dans le fichier choisi par l'utilisateur
+                    requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
+                        output.write(jsonContent.toByteArray())
+                    }
+                    android.widget.Toast.makeText(
+                        context,
+                        "Rapport JSON enregistré avec succès !",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Erreur sauvegarde: ${e.message}",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+
     private val binding get() = _binding!!
 
     // On lie le ViewModel
@@ -72,12 +121,17 @@ class MaintenanceFragment : Fragment() {
         }
 
         // 4. Bouton Export
-        binding.fabExport.setOnClickListener {
-            viewModel.exportBackupJson(requireContext())
+        binding.fabExportHtml.setOnClickListener {
+            saveReportLauncherHtml.launch("Rapport_Entretien_206.html")
+        }
+
+        // 4. Bouton Export
+        binding.fabExportJson.setOnClickListener {
+            saveReportLauncherJson.launch("data.json")
         }
 
         binding.fabImport.setOnClickListener {
-            openFileLauncher.launch(arrayOf("application/json"))
+            openFileLauncher.launch(arrayOf("*/*"))
         }
     }
 

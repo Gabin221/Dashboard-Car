@@ -139,23 +139,29 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
 
         // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
-        binding.btnManageFavorites.setOnClickListener {
-            val position = binding.spinnerFavorites.selectedItemPosition
-            if (position > 0) {
-                // position - 1 car l'index 0 est le titre "Favoris..."
-                // On récupère l'objet directement depuis notre liste locale, c'est FIABLE.
-                val itemToDelete = currentFavoritesList[position - 1]
+        // ... (code précédent de création de l'adapter) ...
 
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Supprimer ${itemToDelete.name} ?")
-                    .setPositiveButton("Oui") { _, _ ->
-                        savedAddressViewModel.deleteFavorite(itemToDelete)
-                        Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
-                        binding.spinnerFavorites.setSelection(0)
+        binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (position > 0) {
+                    // 1. On récupère le favori
+                    val selectedFav = currentFavoritesList[position - 1]
+
+                    // 2. On met à jour la barre de recherche (visuel)
+                    binding.etSearch.setText(selectedFav.name)
+
+                    // 3. On lance la navigation
+                    // Astuce : On vérifie si on n'est pas déjà en train d'y aller pour éviter de spammer au démarrage
+                    val destCoords = "${selectedFav.latitude},${selectedFav.longitude}"
+                    if (currentDestinationCoords != destCoords) {
+                        startNavigationTo(destCoords)
                     }
-                    .setNegativeButton("Non", null)
-                    .show()
+
+                    // 4. ET SURTOUT : ON NE REMET PAS LA SÉLECTION À 0 ICI !
+                    // On laisse le spinner sur "Maison" (par exemple)
+                }
             }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
         }
 
         binding.btnUpdateFavorites.setOnClickListener {
@@ -193,6 +199,30 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 showSaveFavoriteDialog()
             } else {
                 showSaveFavoriteDialog()
+            }
+        }
+
+        binding.btnManageFavorites.setOnClickListener {
+            val position = binding.spinnerFavorites.selectedItemPosition
+
+            if (position > 0) {
+                val itemToDelete = currentFavoritesList[position - 1]
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Supprimer ${itemToDelete.name} ?")
+                    .setPositiveButton("Oui") { _, _ ->
+                        // 1. Suppression
+                        savedAddressViewModel.deleteFavorite(itemToDelete)
+                        Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
+
+                        // 2. C'EST ICI QU'ON RESET LE SPINNER (Une fois mort, on revient au début)
+                        binding.spinnerFavorites.setSelection(0)
+                        binding.etSearch.setText("") // On vide la barre aussi
+                    }
+                    .setNegativeButton("Non", null)
+                    .show()
+            } else {
+                Toast.makeText(context, "Veuillez sélectionner un favori dans la liste d'abord", Toast.LENGTH_SHORT).show()
             }
         }
 
