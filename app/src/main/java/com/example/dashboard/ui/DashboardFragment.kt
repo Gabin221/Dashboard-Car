@@ -96,7 +96,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 } else {
                     // On n'a pas bougé (bouchon), on ne spamme pas l'API.
                     // On revérifie dans 10 secondes si ça s'est débloqué
-                    android.util.Log.d("GPS", "Bouchon détecté ou arrêt : pas de recalcul.")
+                    Log.d("GPS", "Bouchon détecté ou arrêt : pas de recalcul.")
                     navigationHandler.postDelayed(this, 10000L)
                 }
             }
@@ -141,50 +141,6 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         // 2. GESTION DE LA SUPPRESSION (Bouton Poubelle)
         // ... (code précédent de création de l'adapter) ...
 
-        binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                if (position > 0) {
-                    // 1. On récupère le favori
-                    val selectedFav = currentFavoritesList[position - 1]
-
-                    // 2. On met à jour la barre de recherche (visuel)
-                    binding.etSearch.setText(selectedFav.name)
-
-                    // 3. On lance la navigation
-                    // Astuce : On vérifie si on n'est pas déjà en train d'y aller pour éviter de spammer au démarrage
-                    val destCoords = "${selectedFav.latitude},${selectedFav.longitude}"
-                    if (currentDestinationCoords != destCoords) {
-                        startNavigationTo(destCoords)
-                    }
-
-                    // 4. ET SURTOUT : ON NE REMET PAS LA SÉLECTION À 0 ICI !
-                    // On laisse le spinner sur "Maison" (par exemple)
-                }
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
-        }
-
-        binding.btnUpdateFavorites.setOnClickListener {
-            val position = binding.spinnerFavorites.selectedItemPosition
-            if (position > 0) {
-                val itemToEdit = currentFavoritesList[position - 1]
-
-                // Ouvre une modale avec un champ texte pré-rempli
-                val input = EditText(requireContext())
-                input.setText(itemToEdit.name)
-
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Renommer")
-                    .setView(input)
-                    .setPositiveButton("OK") { _, _ ->
-                        val newName = input.text.toString()
-                        // Tu dois ajouter une fonction updateFavorite dans ton ViewModel
-                        // savedAddressViewModel.updateFavoriteName(itemToEdit, newName)
-                    }
-                    .show()
-            }
-        }
-
         binding.btnSearchGo.setOnClickListener {
             val address = binding.etSearch.text.toString()
             if (address.isNotEmpty()) {
@@ -194,72 +150,24 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        binding.btnSaveFavorite.setOnClickListener {
-            if (currentDestination != null && binding.btnSaveFavorite.tag != "saved") {
-                showSaveFavoriteDialog()
-            } else {
-                showSaveFavoriteDialog()
-            }
-        }
-
-        binding.btnManageFavorites.setOnClickListener {
-            val position = binding.spinnerFavorites.selectedItemPosition
-
-            if (position > 0) {
-                val itemToDelete = currentFavoritesList[position - 1]
-
-                AlertDialog.Builder(requireContext())
-                    .setTitle("Supprimer ${itemToDelete.name} ?")
-                    .setPositiveButton("Oui") { _, _ ->
-                        // 1. Suppression
-                        savedAddressViewModel.deleteFavorite(itemToDelete)
-                        Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
-
-                        // 2. C'EST ICI QU'ON RESET LE SPINNER (Une fois mort, on revient au début)
-                        binding.spinnerFavorites.setSelection(0)
-                        binding.etSearch.setText("") // On vide la barre aussi
-                    }
-                    .setNegativeButton("Non", null)
-                    .show()
-            } else {
-                Toast.makeText(context, "Veuillez sélectionner un favori dans la liste d'abord", Toast.LENGTH_SHORT).show()
-            }
-        }
+//        binding.btnSaveFavorite.setOnClickListener {
+//            if (currentDestination != null && binding.btnSaveFavorite.tag != "saved") {
+//                showSaveFavoriteDialog()
+//            } else {
+//                showSaveFavoriteDialog()
+//            }
+//        }
 
         lifecycleScope.launch {
             savedAddressViewModel.savedAddresses.collect { savedList ->
                 currentFavoritesList = savedList
-                val spinnerItems = mutableListOf("fav...")
-                spinnerItems.addAll(savedList.map { it.name })
-                val adapter = android.widget.ArrayAdapter(requireContext(), R.layout.spinner_item, spinnerItems)
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                binding.spinnerFavorites.adapter = adapter
-                binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                        if (position > 0) {
-                            val selectedFav = savedList[position - 1]
-                            binding.etSearch.setText(selectedFav.name)
-                            val dest = "${selectedFav.latitude},${selectedFav.longitude}"
-                            startNavigationTo(dest)
-                            binding.spinnerFavorites.setSelection(0)
-                        }
-                    }
-                    override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
-                }
+                // On met à jour le texte du bouton pour faire joli (optionnel)
+                binding.btnOpenFavorites.text = "📂  Mes Favoris (${savedList.size})"
             }
         }
 
-        val fakeFavorites = listOf("Favoris...", "Maison", "Boulot")
-        val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, fakeFavorites)
-        binding.spinnerFavorites.adapter = adapter
-        binding.spinnerFavorites.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>, view: View?, position: Int, id: Long) {
-                if (position > 0) {
-                    val selected = fakeFavorites[position]
-                    binding.etSearch.setText(selected)
-                }
-            }
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+        binding.btnOpenFavorites.setOnClickListener {
+            showFavoritesListDialog()
         }
 
         // Clic sur la croix -> Efface le trajet
@@ -291,6 +199,91 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                 }
             }
         }
+    }
+
+    private fun showFavoritesListDialog() {
+        if (currentFavoritesList.isEmpty()) {
+            Toast.makeText(context, "Aucun favori enregistré.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 1. On prépare les noms à afficher
+        val names = currentFavoritesList.map { it.name }.toTypedArray()
+
+        // 2. On crée une ListView manuellement pour gérer les Clics Longs
+        val listView = android.widget.ListView(requireContext())
+        val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, names)
+        listView.adapter = adapter
+
+        // 3. Création de la fenêtre
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("Mes Destinations")
+            .setView(listView)
+            .setNegativeButton("Fermer", null)
+            .create()
+
+        // 4. GESTION DU CLIC COURT (Navigation)
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val selectedFav = currentFavoritesList[position]
+
+            // Action : Navigation
+            binding.etSearch.setText(selectedFav.name)
+            val destCoords = "${selectedFav.latitude},${selectedFav.longitude}"
+            startNavigationTo(destCoords)
+
+            dialog.dismiss() // On ferme la liste
+        }
+
+        // 5. GESTION DU CLIC LONG (Menu Modifier / Supprimer)
+        listView.setOnItemLongClickListener { _, _, position, _ ->
+            val selectedFav = currentFavoritesList[position]
+
+            // On ouvre une petite fenêtre de choix
+            val options = arrayOf("Modifier le nom", "Supprimer")
+            AlertDialog.Builder(requireContext())
+                .setTitle("Gérer '${selectedFav.name}'")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> showEditFavoriteDialog(selectedFav) // Modifier
+                        1 -> deleteFavoriteConfirm(selectedFav)  // Supprimer
+                    }
+                }
+                .show()
+
+            true // Indique qu'on a géré l'événement (pour ne pas déclencher le clic court en même temps)
+        }
+
+        dialog.show()
+    }
+
+    // Petite fonction pour confirmer la suppression
+    private fun deleteFavoriteConfirm(item: com.example.dashboard.data.SavedAddress) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Supprimer ${item.name} ?")
+            .setPositiveButton("Oui") { _, _ ->
+                savedAddressViewModel.deleteFavorite(item)
+                Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
+                // Pas besoin de rafraîchir manuellement, le collect le fera et fermera/rouvrira la liste si besoin
+            }
+            .setNegativeButton("Non", null)
+            .show()
+    }
+
+    // Petite fonction pour modifier le nom
+    private fun showEditFavoriteDialog(item: com.example.dashboard.data.SavedAddress) {
+        val input = EditText(requireContext())
+        input.setText(item.name)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Renommer")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val newName = input.text.toString()
+                savedAddressViewModel.updateFavoriteName(item, newName)
+                Toast.makeText(context, "Modifié !", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
     }
 
     private fun showSaveLocationDialog(lat: Double, lon: Double) {
@@ -373,8 +366,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                         currentDestination!!.latitude,
                         currentDestination!!.longitude
                     )
-                    binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_on)
-                    binding.btnSaveFavorite.tag = "saved"
+//                    binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_on)
+//                    binding.btnSaveFavorite.tag = "saved"
                     Toast.makeText(context, "Enregistré !", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -441,8 +434,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Go : $fullAddress", Toast.LENGTH_SHORT).show()
                         startNavigationTo(destinationCoords)
-                        binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_off)
-                        binding.btnSaveFavorite.tag = "unsaved"
+//                        binding.btnSaveFavorite.setImageResource(android.R.drawable.btn_star_big_off)
+//                        binding.btnSaveFavorite.tag = "unsaved"
                         val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                         imm.hideSoftInputFromWindow(view?.windowToken, 0)
                     }

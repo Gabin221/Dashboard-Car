@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -21,16 +22,23 @@ class MaintenanceFragment : Fragment() {
 
     private val openFileLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
-            // Lecture du fichier (nécessite la permission de lecture pour le URI)
             try {
                 val inputStream = requireContext().contentResolver.openInputStream(it)
                 val jsonString = inputStream?.bufferedReader().use { reader -> reader?.readText() }
+
                 if (jsonString != null) {
-                    viewModel.importBackupJson(jsonString) // C'est la fonction du ViewModel qui fait le travail
-                    android.widget.Toast.makeText(context, "Import réussi ! Redémarrez l'appli pour être sûr.", android.widget.Toast.LENGTH_LONG).show()
+                    // LOGIQUE INTELLIGENTE ICI
+                    if (viewModel.hasData()) {
+                        // Il y a déjà des trucs -> On demande
+                        showImportConflictDialog(jsonString)
+                    } else {
+                        // Vide -> On importe direct
+                        viewModel.importBackupJson(jsonString)
+                        Toast.makeText(context, "Import réussi !", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "Erreur lecture fichier: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Erreur lecture : ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -133,6 +141,49 @@ class MaintenanceFragment : Fragment() {
         binding.fabImport.setOnClickListener {
             openFileLauncher.launch(arrayOf("*/*"))
         }
+
+        binding.tri.setOnClickListener {
+            val options = arrayOf("Urgence (Plus pressé en haut)", "Urgence (Moins pressé en haut)", "Nom (A-Z)", "Nom (Z-A)")
+
+            AlertDialog.Builder(requireContext())
+                .setTitle("Trier par...")
+                .setItems(options) { _, which ->
+                    val sort = when (which) {
+                        0 -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+                        1 -> MaintenanceViewModel.SortOrder.URGENCY_DESC
+                        2 -> MaintenanceViewModel.SortOrder.NAME_ASC
+                        3 -> MaintenanceViewModel.SortOrder.NAME_DESC
+                        else -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+                    }
+                    viewModel.setSortOrder(sort)
+                }
+                .show()
+        }
+    }
+
+    private fun showImportConflictDialog(jsonString: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Base de données non vide")
+            .setMessage("Voulez-vous ajouter ces données à la suite (Fusionner) ou tout effacer avant (Remplacer) ?")
+            .setPositiveButton("Fusionner") { _, _ ->
+                viewModel.importBackupJson(jsonString)
+                Toast.makeText(context, "Données ajoutées !", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Remplacer") { _, _ ->
+                // On vide d'abord, puis on importe
+                viewModel.deleteAllMaintenanceData()
+                // On laisse un petit délai ou on enchaîne (dans le VM ce serait mieux, mais ici ça passe)
+                // Idéalement, deleteAllMaintenanceData devrait être 'suspend' et appelé dans une coroutine ici
+                // Pour faire simple et sûr :
+                lifecycleScope.launch {
+                    viewModel.deleteAllMaintenanceData()
+                    kotlinx.coroutines.delay(200) // Petit temps pour laisser la BDD respirer
+                    viewModel.importBackupJson(jsonString)
+                    Toast.makeText(context, "Base remplacée !", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton("Annuler", null)
+            .show()
     }
 
     // Fonction unifiée pour Créer OU Modifier

@@ -24,21 +24,39 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
 
     private val repository: CarRepository
 
+    // Enumération des tris possibles
+    enum class SortOrder {
+        NAME_ASC,       // Alphabétique A-Z
+        NAME_DESC,      // Alphabétique Z-A
+        URGENCY_ASC,    // Le plus urgent en premier (Reste le moins de KM)
+        URGENCY_DESC    // Le moins urgent en premier
+    }
+
+    // On stocke le choix actuel (par défaut : Urgence)
+    private val _currentSort = kotlinx.coroutines.flow.MutableStateFlow(SortOrder.URGENCY_ASC)
+
+    // Fonction pour changer le tri depuis l'interface
+    fun setSortOrder(order: SortOrder) {
+        _currentSort.value = order
+    }
+
     init {
         val db = AppDatabase.getDatabase(application)
         repository = CarRepository(db.carDao(), db.savedAddressDao())
     }
 
+    // On met à jour la grosse pipeline de données
     val maintenanceListState = combine(
         repository.maintenanceItems,
-        repository.carProfile
-    ) { items, profile ->
+        repository.carProfile,
+        _currentSort // <--- On ajoute le tri dans le mixeur
+    ) { items, profile, sortOrder ->
         val currentKm = profile?.totalMileage ?: 0.0
 
-        items.map { item ->
+        // 1. On calcule tout comme avant
+        val uiList = items.map { item ->
             val distanceDriven = currentKm - item.lastServiceKm
             val remainingKm = item.intervalKm - distanceDriven
-
             val progressPercent = if (item.intervalKm > 0) {
                 (distanceDriven / item.intervalKm * 100).toInt().coerceIn(0, 100)
             } else { 0 }
@@ -55,7 +73,16 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
                 }
             )
         }
+
+        // 2. On applique le tri sur la liste calculée
+        when (sortOrder) {
+            SortOrder.NAME_ASC -> uiList.sortedBy { it.item.name }
+            SortOrder.NAME_DESC -> uiList.sortedByDescending { it.item.name }
+            SortOrder.URGENCY_ASC -> uiList.sortedBy { it.remainingKm } // Petits KM restants en haut
+            SortOrder.URGENCY_DESC -> uiList.sortedByDescending { it.remainingKm }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
 
     // Mise à jour pour inclure les Mois
     fun saveItem(id: Int, name: String, intervalKm: Int, intervalMonths: Int, lastKm: Double) {
@@ -164,8 +191,6 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
         sb.append("</body></html>")
         return sb.toString()
     }
-
-    // In app/src/main/java/com/example/dashboard/ui/MaintenanceViewModel.kt
 
     suspend fun generateJsonReport(): String {
         val items = repository.maintenanceItems.first()
@@ -290,6 +315,23 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         }
+    }
+
+    // Dans MaintenanceViewModel
+
+    // Fonction pour tout supprimer
+    fun deleteAllMaintenanceData() {
+        viewModelScope.launch {
+            // Attention : Si tes Logs sont en CASCADE, ils seront aussi supprimés (ce qui est logique pour un "Remplacer")
+            repository.deleteAllItems() // Ajoute cette méthode dans ton Repository qui appelle le DAO
+        }
+    }
+
+    // Une variable simple pour savoir si on a des données
+    // On peut utiliser la valeur actuelle du Flow
+    fun hasData(): Boolean {
+        // On regarde si la liste actuelle (maintenanceListState) n'est pas vide
+        return maintenanceListState.value.isNotEmpty()
     }
 
     fun updateFavoriteName(item: SavedAddress, newName: String) {

@@ -35,4 +35,7 @@ interface CarDao {
 
     @Insert
     suspend fun insertLog(log: MaintenanceLog)
+
+    @Query("DELETE FROM maintenance_items")
+    suspend fun deleteAllItems()
 }

@@ -34,6 +34,11 @@ class CarRepository(private val carDao: CarDao, private val addressDao: SavedAdd
         carDao.deleteMaintenanceItem(item)
     }
 
+    suspend fun deleteAllItems() {
+        carDao.deleteAllItems()
+    }
+
+
     // Gestion Logs
     fun getLogs(itemId: Int): Flow<List<MaintenanceLog>> = carDao.getLogsForItem(itemId)
 

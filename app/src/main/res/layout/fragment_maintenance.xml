@@ -16,7 +16,17 @@
         android:textStyle="bold"
         android:layout_margin="16dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/tri"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tri"
+        app:layout_constraintTop_toBottomOf="@id/tv_header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/rv_maintenance" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_maintenance"
@@ -24,8 +34,9 @@
         android:layout_height="0dp"
         android:padding="8dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/tv_header"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        app:layout_constraintTop_toBottomOf="@id/tri"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_import"
