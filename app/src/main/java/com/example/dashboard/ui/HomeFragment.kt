@@ -4,10 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import com.example.dashboard.R // Vérifie que c'est bien ton R
+import com.example.dashboard.R
 import com.example.dashboard.databinding.FragmentHomeBinding
 
 class HomeFragment : Fragment() {
@@ -27,16 +26,19 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // Navigation vers le Dashboard (Conduite)
-        binding.btnDrive.setOnClickListener {
+        // Note: On clique sur la CardView maintenant (id: card_drive)
+        binding.cardDrive.setOnClickListener {
             findNavController().navigate(R.id.action_home_to_dashboard)
         }
 
         // Navigation vers l'Entretien
-        binding.btnMaintenance.setOnClickListener {
+        // Note: On clique sur la CardView (id: card_maintenance)
+        binding.cardMaintenance.setOnClickListener {
             findNavController().navigate(R.id.action_home_to_maintenance)
         }
 
-        // Dans HomeFragment.kt
+        // Ouverture Profil
+        // Note: On clique sur le layout interne du profil (id: btn_profile)
         binding.btnProfile.setOnClickListener {
             val dialog = ProfileDialogFragment()
             dialog.show(parentFragmentManager, "ProfileDialog")

@@ -46,6 +46,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private val binding get() = _binding!!
     private var map: GoogleMap? = null
 
+    // Pour la logique de rafraîchissement intelligent
+    private var lastApiCallTime: Long = 0
+    private var lastApiCallLocation: android.location.Location? = null
+    private var currentSpeedKmH: Float = 0f // On la mettra à jour via le GPS ou l'OBD
+
     private var currentFavoritesList: List<com.example.dashboard.data.SavedAddress> = emptyList()
     private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
     private var locationCallback: com.google.android.gms.location.LocationCallback? = null
@@ -56,55 +61,68 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private var currentDestination: LatLng? = null
     private var currentAddressName: String = ""
 
-    private var lastRecalculationLocation: android.location.Location? = null
+    private var lastRecalculationLocation: Location? = null
 
     // Pour gérer la boucle de rafraichissement
     private val navigationHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var isNavigationActive = false
-    private val REFRESH_INTERVAL = 45000L // 45 secondes (Bon compromis)
+    private val REFRESH_INTERVAL = 10000L // 45 secondes (Bon compromis)
 
     private val navigationRunnable = object : Runnable {
         override fun run() {
             if (isNavigationActive && currentDestinationCoords != null) {
-                // On récupère la position actuelle via la map (ou via ta variable lastLocation)
+                // On récupère la position actuelle
                 val myLoc = try { map?.myLocation } catch (e: Exception) { null }
 
-                // LOGIQUE INTELLIGENTE
-                var shouldRefresh = false
-
                 if (myLoc != null) {
-                    if (lastRecalculationLocation == null) {
-                        shouldRefresh = true // Premier lancement
+                    val currentTime = System.currentTimeMillis()
+
+                    // Si c'est le tout premier appel
+                    if (lastApiCallLocation == null) {
+                        performRefresh(myLoc)
                     } else {
-                        val distance = myLoc.distanceTo(lastRecalculationLocation!!) // en mètres
-                        // Si on a bougé de plus de 100m (on avance)
-                        // OU si on a bougé de plus de 30m ET qu'on est à une intersection (difficile à savoir, donc on fait au temps court)
-                        if (distance > 100) {
-                            shouldRefresh = true
+                        // Calculs des deltas
+                        val distanceTraveled = myLoc.distanceTo(lastApiCallLocation!!) // en mètres
+                        val timeElapsed = currentTime - lastApiCallTime // en millisecondes
+
+                        // DÉFINITION DES SEUILS SELON LA VITESSE
+                        val (distThreshold, timeThreshold) = when {
+                            currentSpeedKmH < 50 -> Pair(200, 60_000L)      // Ville : 200m ou 1min
+                            currentSpeedKmH < 90 -> Pair(1000, 90_000L)     // Route : 1km ou 1min30
+                            else -> Pair(3000, 180_000L)                    // Autoroute : 3km ou 3min
+                        }
+
+                        // VERIFICATION
+                        // On rafraîchit SI (Distance dépassée OU Temps dépassé)
+                        // ET qu'on a bougé un minimum (pour éviter boucle infinie à l'arrêt complet strict)
+                        if (distanceTraveled > distThreshold || timeElapsed > timeThreshold) {
+                            if (distanceTraveled > 20) { // Anti-surplace
+                                android.util.Log.d("GPS_SMART", "Refresh: Vitesse=$currentSpeedKmH km/h, Dist=$distanceTraveled m")
+                                performRefresh(myLoc)
+                            }
                         }
                     }
                 }
 
-                if (shouldRefresh) {
-                    startNavigationTo(currentDestinationCoords!!)
-                    // On convertit LatLng en Location pour la mémoire
-                    val loc = android.location.Location("memory")
-                    loc.latitude = myLoc?.latitude ?: 0.0
-                    loc.longitude = myLoc?.longitude ?: 0.0
-                    lastRecalculationLocation = loc
-
-                    // Prochain check dans 30 secondes (plus fréquent pour vérifier le mouvement)
-                    navigationHandler.postDelayed(this, 30000L)
-                } else {
-                    // On n'a pas bougé (bouchon), on ne spamme pas l'API.
-                    // On revérifie dans 10 secondes si ça s'est débloqué
-                    Log.d("GPS", "Bouchon détecté ou arrêt : pas de recalcul.")
-                    navigationHandler.postDelayed(this, 10000L)
-                }
+                // On revérifie les conditions dans 5 secondes
+                // (Ce n'est pas un appel API, juste un check de condition "if", donc très léger)
+                navigationHandler.postDelayed(this, 5000L)
             }
         }
     }
 
+    // Petite fonction helper pour éviter de dupliquer le code
+    private fun performRefresh(location: android.location.Location) {
+        startNavigationTo(currentDestinationCoords!!)
+
+        // On mémorise l'état de cet appel
+        lastApiCallTime = System.currentTimeMillis()
+        // On crée une copie de la location pour ne pas garder une référence qui bouge
+        val locSnapshot = android.location.Location("memory")
+        locSnapshot.latitude = location.latitude
+        locSnapshot.longitude = location.longitude
+        lastApiCallLocation = locSnapshot
+    }
     // Pour mémoriser où on va
     private var currentDestinationCoords: String? = null
     private val client = OkHttpClient()
@@ -510,6 +528,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                         }
                     }
                     lastLocation = location
+                    if (location.hasSpeed()) {
+                        currentSpeedKmH = location.speed * 3.6f // Conversion m/s en km/h
+                    }
                 }
             }
         }

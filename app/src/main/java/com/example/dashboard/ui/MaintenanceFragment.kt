@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.dashboard.R
 import com.example.dashboard.databinding.FragmentMaintenanceBinding
 import kotlinx.coroutines.launch
 
@@ -128,37 +129,90 @@ class MaintenanceFragment : Fragment() {
             showMaintenanceDialog(null)
         }
 
-        // 4. Bouton Export
-        binding.fabExportHtml.setOnClickListener {
-            saveReportLauncherHtml.launch("Rapport_Entretien_206.html")
-        }
+//        // 4. Bouton Export
+//        binding.fabExportHtml.setOnClickListener {
+//            saveReportLauncherHtml.launch("Rapport_Entretien_206.html")
+//        }
+//
+//        // 4. Bouton Export
+//        binding.fabExportJson.setOnClickListener {
+//            saveReportLauncherJson.launch("data.json")
+//        }
+//
+//        binding.fabImport.setOnClickListener {
+//            openFileLauncher.launch(arrayOf("*/*"))
+//        }
 
-        // 4. Bouton Export
-        binding.fabExportJson.setOnClickListener {
-            saveReportLauncherJson.launch("data.json")
-        }
+//        binding.tri.setOnClickListener {
+//            val options = arrayOf("Urgence (Plus pressé en haut)", "Urgence (Moins pressé en haut)", "Nom (A-Z)", "Nom (Z-A)")
+//
+//            AlertDialog.Builder(requireContext())
+//                .setTitle("Trier par...")
+//                .setItems(options) { _, which ->
+//                    val sort = when (which) {
+//                        0 -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+//                        1 -> MaintenanceViewModel.SortOrder.URGENCY_DESC
+//                        2 -> MaintenanceViewModel.SortOrder.NAME_ASC
+//                        3 -> MaintenanceViewModel.SortOrder.NAME_DESC
+//                        else -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+//                    }
+//                    viewModel.setSortOrder(sort)
+//                }
+//                .show()
+//        }
 
-        binding.fabImport.setOnClickListener {
-            openFileLauncher.launch(arrayOf("*/*"))
-        }
-
-        binding.tri.setOnClickListener {
-            val options = arrayOf("Urgence (Plus pressé en haut)", "Urgence (Moins pressé en haut)", "Nom (A-Z)", "Nom (Z-A)")
-
-            AlertDialog.Builder(requireContext())
-                .setTitle("Trier par...")
-                .setItems(options) { _, which ->
-                    val sort = when (which) {
-                        0 -> MaintenanceViewModel.SortOrder.URGENCY_ASC
-                        1 -> MaintenanceViewModel.SortOrder.URGENCY_DESC
-                        2 -> MaintenanceViewModel.SortOrder.NAME_ASC
-                        3 -> MaintenanceViewModel.SortOrder.NAME_DESC
-                        else -> MaintenanceViewModel.SortOrder.URGENCY_ASC
-                    }
-                    viewModel.setSortOrder(sort)
+        binding.toolbarMaintenance.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_sort -> {
+                    // Copie ici ton code de la modale de tri
+                    showSortDialog()
+                    true
                 }
-                .show()
+                R.id.action_import -> {
+                    openFileLauncher.launch(arrayOf("*/*"))
+                    true
+                }
+                R.id.action_export_html -> {
+                    saveReportLauncherHtml.launch("Rapport_Entretien.html")
+                    true
+                }
+                R.id.action_export_json -> {
+                    saveReportLauncherJson.launch("data.json")
+                    true
+                }
+                R.id.action_delete_all -> {
+                    // Copie ton code de suppression ici ou appelle une fonction
+                    showDeleteAllConfirmation()
+                    true
+                }
+                else -> false
+            }
         }
+    }
+
+    private fun showSortDialog() {
+        val options = arrayOf("Urgence (Plus pressé)", "Urgence (Moins pressé)", "Nom (A-Z)")
+        AlertDialog.Builder(requireContext())
+            .setTitle("Trier par...")
+            .setItems(options) { _, which ->
+                val sort = when (which) {
+                    0 -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+                    1 -> MaintenanceViewModel.SortOrder.URGENCY_DESC
+                    2 -> MaintenanceViewModel.SortOrder.NAME_ASC
+                    else -> MaintenanceViewModel.SortOrder.URGENCY_ASC
+                }
+                viewModel.setSortOrder(sort)
+            }
+            .show()
+    }
+
+    private fun showDeleteAllConfirmation() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Tout effacer ?")
+            .setMessage("Attention, cela supprimera tous les entretiens et l'historique.")
+            .setPositiveButton("Oui") { _, _ -> viewModel.deleteAllMaintenanceData() }
+            .setNegativeButton("Non", null)
+            .show()
     }
 
     private fun showImportConflictDialog(jsonString: String) {

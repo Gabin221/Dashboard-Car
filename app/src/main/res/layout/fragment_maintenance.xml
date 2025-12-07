@@ -18,55 +18,32 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/tri"
-        android:layout_width="wrap_content"
+<!--    <Button-->
+<!--        android:id="@+id/tri"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="Tri"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/tv_header"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintBottom_toTopOf="@id/rv_maintenance" />-->
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_maintenance"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Tri"
-        app:layout_constraintTop_toBottomOf="@id/tv_header"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/rv_maintenance" />
+        android:background="#333333"
+        app:title="Entretien"
+        app:titleTextColor="#FFFFFF"
+        app:menu="@menu/maintenance_menu"
+        app:layout_constraintTop_toTopOf="parent"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_maintenance"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:padding="8dp"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/tri"
-        app:layout_constraintBottom_toBottomOf="parent" />
-
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_import"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="24dp"
-        android:src="@android:drawable/arrow_down_float"
-        android:backgroundTint="#2196F3"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_export_json"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="24dp"
-        android:src="@android:drawable/arrow_up_float"
-        android:backgroundTint="#F32160"
-        app:layout_constraintBottom_toTopOf="@id/fab_import"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_export_html"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="24dp"
-        android:src="@android:drawable/arrow_up_float"
-        android:backgroundTint="#2196F3"
-        app:layout_constraintBottom_toTopOf="@id/fab_export_json"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/toolbar_maintenance"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add"
@@ -75,7 +52,7 @@
         android:layout_margin="24dp"
         android:src="@android:drawable/ic_input_add"
         android:backgroundTint="#2196F3"
-        app:layout_constraintBottom_toTopOf="@id/fab_export_html"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
