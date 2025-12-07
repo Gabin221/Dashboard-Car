@@ -46,7 +46,7 @@
                     android:id="@+id/btn_search"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:src="@android:drawable/ic_search_category_default"
+                    android:src="@drawable/map_search"
                     android:background="?selectableItemBackgroundBorderless" />
             </LinearLayout>
 
@@ -55,33 +55,29 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="4dp"
                 android:background="@drawable/bg_rounded_white_80"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 android:layout_marginTop="8dp"
                 android:layout_marginEnd="8dp">
 
-                <Button
+                <ImageButton
                     android:id="@+id/btn_open_favorites"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:text="📂"
-                    android:textSize="18sp"
-                    android:gravity="center"
-                    android:backgroundTint="#555555"
-                    style="@style/Widget.MaterialComponents.Button.Icon"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="0dp"/>
+                    android:src="@drawable/bookmark_check_outline"
+                    android:background="?selectableItemBackgroundBorderless"
+                    android:padding="0dp"
+                    android:cropToPadding="true"
+                    android:scaleType="centerInside"
+                    android:adjustViewBounds="true"/>
 
                 <ImageButton
                     android:id="@+id/btn_save_current"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginTop="8dp"
-                    android:src="@android:drawable/ic_menu_add"
-                    app:tint="#00BCD4"
+                    android:src="@drawable/map_plus"
                     android:background="?selectableItemBackgroundBorderless" />
             </LinearLayout>
 
@@ -120,6 +116,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textSize="14sp"
+                            android:textStyle="bold"
                             android:textColor="#333"
                             android:text="-- min"/>
                     </LinearLayout>
@@ -141,6 +138,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textSize="14sp"
+                            android:textStyle="bold"
                             android:textColor="#333"
                             android:text="-- km"/>
                     </LinearLayout>
@@ -161,6 +159,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textSize="14sp"
+                            android:textStyle="bold"
                             android:textColor="#333"
                             android:text="--:--"/>
                     </LinearLayout>
