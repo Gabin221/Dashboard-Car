@@ -21,9 +21,16 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         return repository.carProfile.firstOrNull()
     }
 
-    fun saveProfile(model: String, km: Double, fuel: String) {
+    fun saveProfile(model: String, km: Double, fuel: String, plate: String, link: String) {
         viewModelScope.launch {
-            val profile = CarProfile(id = 1, totalMileage = km, carModel = model, fuelType = fuel)
+            val profile = CarProfile(
+                id = 1,
+                totalMileage = km,
+                carModel = model,
+                fuelType = fuel,
+                licensePlate = plate,
+                histovecLink = link
+            )
             repository.saveProfile(profile)
         }
     }

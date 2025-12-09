@@ -7,10 +7,12 @@ import androidx.room.PrimaryKey
 // 1. PROFIL VOITURE
 @Entity(tableName = "car_profile")
 data class CarProfile(
-    @PrimaryKey val id: Int = 1, // Toujours ID 1 car une seule voiture
+    @PrimaryKey val id: Int = 1,
     val totalMileage: Double = 0.0,
     val carModel: String = "Peugeot 206+",
-    val fuelType: String = "Essence"
+    val fuelType: String = "Essence",
+    val licensePlate: String = "",       // NOUVEAU
+    val histovecLink: String = ""        // NOUVEAU (L'URL que tu génères sur le site gouv)
 )
 
 // 2. ITEMS D'ENTRETIEN (Mise à jour avec Mois et Historique)
@@ -41,7 +43,8 @@ data class MaintenanceLog(
     val dateDone: Long,
     val kmDone: Double,
     val cost: Double = 0.0,
-    val comment: String = ""
+    val comment: String = "",
+    val doneByOwner: Boolean
 )
 
 data class MaintenanceUiState(
@@ -51,4 +54,28 @@ data class MaintenanceUiState(
     val remainingKm: Double,
     val progressPercent: Int,
     val statusColor: Int
+)
+
+data class JsonRoot(
+    val meta: JsonMeta?,
+    val items: List<JsonItem>?
+)
+
+data class JsonMeta(
+    val title: String?,
+    val exportDate: String?,
+    val vehicle: String?
+)
+
+data class JsonItem(
+    val name: String,
+    val intervalKm: Int,
+    val lastServiceKm: Double,
+    val logs: List<JsonLog>? // Les logs sont DANS l'item
+)
+
+data class JsonLog(
+    val date: String, // Format "dd/MM/yy" dans ton JSON
+    val km: Double,
+    val comment: String?
 )

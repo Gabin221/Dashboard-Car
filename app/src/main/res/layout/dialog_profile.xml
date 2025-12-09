@@ -47,6 +47,32 @@
         android:layout_height="wrap_content"
         android:entries="@array/fuel_types"
         android:minHeight="48dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Immatriculation"
+        android:layout_marginTop="12dp"/>
+    <EditText
+        android:id="@+id/et_license_plate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="AA-123-BB"
+        android:inputType="textCapCharacters"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Lien HistoVec (Facultatif)"
+        android:layout_marginTop="12dp"/>
+    <EditText
+        android:id="@+id/et_histovec"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/black"
+        android:text="https://histovec.interieur.gouv.fr/histovec/rapport-acheteur?key=a256f94d-1ef2-442d-a25a-4914f4467d09"
+        android:inputType="textUri"/>
+
     <Button
         android:id="@+id/btn_save_profile"
         android:layout_width="match_parent"

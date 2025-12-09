@@ -8,6 +8,7 @@ import com.example.dashboard.data.BackupData
 import com.example.dashboard.data.CarRepository
 import com.example.dashboard.data.MaintenanceItem
 import com.example.dashboard.data.MaintenanceLog
+import com.example.dashboard.data.JsonRoot
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -17,11 +18,17 @@ import com.example.dashboard.data.MaintenanceUiState
 import com.example.dashboard.data.SavedAddress
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import kotlin.math.round
 
+///////////////////////////////////////////////////////////////////
 
+// Classes pour mapper TON Json spécifique
+
+
+/////////////////////////////////////////////////////////////////
 class MaintenanceViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: CarRepository
@@ -111,7 +118,8 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
                 itemId = savedId.toInt(), // On lie ce log à l'item (clé étrangère)
                 dateDone = System.currentTimeMillis(),
                 kmDone = lastKm,
-                comment = "Mise à jour manuelle" // Ou tu pourrais demander un commentaire dans la modale
+                comment = "Mise à jour manuelle", // Ou tu pourrais demander un commentaire dans la modale
+                doneByOwner = true
             )
 
             // 4. On insère le log dans la BDD
@@ -152,6 +160,7 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
     // Génère une chaîne de caractères contenant tout le rapport HTML
     suspend fun generateHtmlReport(): String {
         val items = repository.maintenanceItems.first()
+        val profile = repository.carProfile.firstOrNull() // On récupère le profil
         val sb = StringBuilder()
 
         // 1. HEADER HTML AVEC ENCODAGE FORCE
@@ -172,6 +181,19 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
 
         sb.append("<h1>🚙 Carnet d'Entretien - Peugeot 206+</h1>")
         sb.append("<p>Exporté le : ${java.text.SimpleDateFormat("dd/MM/yyyy à HH:mm").format(java.util.Date())}</p>")
+
+        if (profile != null) {
+            sb.append("<div style='background:#ecf0f1; padding:15px; border-radius:5px; border-left: 5px solid #3498db; margin-bottom:20px;'>")
+            sb.append("<h2>${profile.carModel}</h2>")
+            sb.append("<p><b>Immatriculation :</b> ${profile.licensePlate}</p>")
+            sb.append("<p><b>Kilométrage actuel :</b> ${profile.totalMileage.toInt()} km</p>")
+            sb.append("<p><b>Carburant :</b> ${profile.fuelType}</p>")
+
+            if (profile.histovecLink.isNotEmpty()) {
+                sb.append("<p>📜 <a href='${profile.histovecLink}'>Voir le rapport officiel HistoVec</a></p>")
+            }
+            sb.append("</div>")
+        }
 
         items.forEach { item ->
             sb.append("<div class='item'>")
@@ -287,29 +309,75 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
         return Gson().toJson(report)
     }
 
-    fun importBackupJson(jsonString: String) {
+    fun importBackupJson(jsonString: String, context: android.content.Context) {
         viewModelScope.launch {
             try {
                 val gson = com.google.gson.Gson()
-                val backup = gson.fromJson(jsonString, BackupData::class.java)
 
-                // On vide et on remplace ? Ou on ajoute ?
-                // Pour une restauration, souvent on veut tout remettre à plat.
-                // Attention aux IDs qui pourraient changer.
+                // 1. On parse avec la nouvelle structure
+                val rootData = gson.fromJson(jsonString, JsonRoot::class.java)
 
-                backup.items.forEach { item ->
-                    // On recrée l'item (ID 0 pour forcer insert ou on garde l'ID si on veut restaurer exact)
-                    // Le mieux est de réinsérer proprement
-                    repository.saveMaintenanceItem(item)
+                if (rootData.items == null) {
+                    android.widget.Toast.makeText(context, "Erreur : Aucune donnée trouvée dans le JSON", android.widget.Toast.LENGTH_LONG).show()
+                    return@launch
+                }
 
-                    // Et ses logs associés
-                    val itemLogs = backup.logs.filter { it.itemId == item.id }
-                    itemLogs.forEach { log ->
-                        repository.insertLog(log) // Faudra ajouter insertLog dans le repo
+                var itemsCount = 0
+                var logsCount = 0
+
+                // Format de date utilisé dans ton JSON (ex: 09/12/25)
+                val dateFormat = java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.FRANCE)
+
+                // 2. On parcourt les items
+                rootData.items.forEach { jsonItem ->
+
+                    // A. Création de l'Item
+                    val itemToInsert = MaintenanceItem(
+                        id = 0, // 0 pour forcer la création d'un nouvel ID
+                        name = jsonItem.name,
+                        intervalKm = jsonItem.intervalKm,
+                        intervalMonths = 0, // Valeur par défaut si absente du JSON
+                        lastServiceKm = jsonItem.lastServiceKm,
+                        lastServiceDate = System.currentTimeMillis() // On met la date du jour par défaut
+                    )
+
+                    // On récupère le NOUVEL ID généré par la base
+                    val newId = repository.saveMaintenanceItem(itemToInsert)
+                    itemsCount++
+
+                    // B. Traitement des Logs imbriqués (s'il y en a)
+                    jsonItem.logs?.forEach { jsonLog ->
+                        // Conversion de la date Texte -> Timestamp
+                        val timestamp = try {
+                            dateFormat.parse(jsonLog.date)?.time ?: System.currentTimeMillis()
+                        } catch (e: Exception) {
+                            System.currentTimeMillis()
+                        }
+
+                        val logToInsert = MaintenanceLog(
+                            id = 0,
+                            itemId = newId.toInt(), // On lie au nouvel ID parent
+                            dateDone = timestamp,
+                            kmDone = jsonLog.km,
+                            comment = jsonLog.comment ?: "",
+                            doneByOwner = true // Par défaut true, à adapter si ton JSON évolue
+                        )
+
+                        repository.insertLog(logToInsert)
+                        logsCount++
                     }
                 }
+
+                android.widget.Toast.makeText(
+                    context,
+                    "Succès : $itemsCount entretiens et $logsCount historiques importés.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
             } catch (e: Exception) {
                 e.printStackTrace()
+                android.util.Log.e("DEBUG", "Erreur Import : ${e.message}")
+                android.widget.Toast.makeText(context, "Erreur structure JSON : ${e.message}", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }

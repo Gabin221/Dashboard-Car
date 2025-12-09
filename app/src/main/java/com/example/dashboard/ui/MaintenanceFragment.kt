@@ -34,7 +34,7 @@ class MaintenanceFragment : Fragment() {
                         showImportConflictDialog(jsonString)
                     } else {
                         // Vide -> On importe direct
-                        viewModel.importBackupJson(jsonString)
+                        viewModel.importBackupJson(jsonString, requireContext())
                         Toast.makeText(context, "Import réussi !", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -219,7 +219,7 @@ class MaintenanceFragment : Fragment() {
             .setTitle("Base de données non vide")
             .setMessage("Voulez-vous ajouter ces données à la suite (Fusionner) ou tout effacer avant (Remplacer) ?")
             .setPositiveButton("Fusionner") { _, _ ->
-                viewModel.importBackupJson(jsonString)
+                viewModel.importBackupJson(jsonString, requireContext())
                 Toast.makeText(context, "Données ajoutées !", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Remplacer") { _, _ ->
@@ -231,7 +231,7 @@ class MaintenanceFragment : Fragment() {
                 lifecycleScope.launch {
                     viewModel.deleteAllMaintenanceData()
                     kotlinx.coroutines.delay(200) // Petit temps pour laisser la BDD respirer
-                    viewModel.importBackupJson(jsonString)
+                    viewModel.importBackupJson(jsonString, requireContext())
                     Toast.makeText(context, "Base remplacée !", Toast.LENGTH_SHORT).show()
                 }
             }
