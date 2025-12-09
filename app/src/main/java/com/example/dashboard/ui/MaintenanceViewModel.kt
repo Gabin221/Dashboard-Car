@@ -130,7 +130,7 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
         sb.append(".neutral { color: #7f8c8d; font-style: italic; }")
         sb.append("</style></head><body>")
 
-        sb.append("<h1>🚙 Carnet d'Entretien - Peugeot 206+</h1>")
+        sb.append("<h1>🚙 Carnet d'Entretien</h1>")
         sb.append("<p>Exporté le : ${SimpleDateFormat("dd/MM/yyyy à HH:mm").format(Date())}</p>")
 
         if (profile != null) {
