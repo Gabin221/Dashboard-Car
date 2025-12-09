@@ -49,16 +49,15 @@ class MaintenanceFragment : Fragment() {
         uri?.let { destinationUri ->
             lifecycleScope.launch {
                 try {
-                    // 1. On demande le contenu au ViewModel
                     val htmlContent = viewModel.generateHtmlReport()
 
-                    // 2. On écrit dans le fichier choisi par l'utilisateur
                     requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
-                        output.write(htmlContent.toByteArray())
+                        // CORRECTION ICI : On force l'écriture en UTF-8
+                        output.write(htmlContent.toByteArray(Charsets.UTF_8))
                     }
-                    android.widget.Toast.makeText(context, "Rapport enregistré avec succès !", android.widget.Toast.LENGTH_LONG).show()
+                    android.widget.Toast.makeText(context, "Rapport enregistré !", android.widget.Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(context, "Erreur sauvegarde: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, "Erreur: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }

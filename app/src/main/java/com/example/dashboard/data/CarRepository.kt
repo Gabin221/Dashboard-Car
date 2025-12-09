@@ -22,11 +22,12 @@ class CarRepository(private val carDao: CarDao, private val addressDao: SavedAdd
     }
 
     // Gestion Maintenance
-    suspend fun saveMaintenanceItem(item: MaintenanceItem) {
-        if (item.id == 0) {
-            carDao.addMaintenanceItem(item)
+    suspend fun saveMaintenanceItem(item: MaintenanceItem): Long {
+        return if (item.id == 0) {
+            carDao.addMaintenanceItem(item) // Retourne le nouvel ID
         } else {
             carDao.updateMaintenanceItem(item)
+            item.id.toLong() // On retourne l'ID existant
         }
     }
 

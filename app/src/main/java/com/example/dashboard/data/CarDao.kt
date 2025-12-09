@@ -17,7 +17,7 @@ interface CarDao {
     fun getAllMaintenanceItems(): Flow<List<MaintenanceItem>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addMaintenanceItem(item: MaintenanceItem)
+    suspend fun addMaintenanceItem(item: MaintenanceItem): Long
 
     @Update
     suspend fun updateMaintenanceItem(item: MaintenanceItem)
