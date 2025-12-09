@@ -21,7 +21,6 @@ class MaintenanceAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
         holder.bind(item)
-        // Déclenche l'action quand on clique sur la carte
         holder.itemView.setOnClickListener { onItemClicked(item) }
     }
 
@@ -29,7 +28,6 @@ class MaintenanceAdapter(
         fun bind(state: MaintenanceUiState) {
             binding.tvName.text = state.item.name
 
-            // Formatage propre du texte restant
             if (state.remainingKm < 0) {
                 binding.tvRemaining.text = "DÉPASSÉ de ${-state.remainingKm.toInt()} km !"
                 binding.tvRemaining.setTextColor(0xFFFF5252.toInt())

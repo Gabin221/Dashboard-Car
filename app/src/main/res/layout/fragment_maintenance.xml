@@ -18,16 +18,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-<!--    <Button-->
-<!--        android:id="@+id/tri"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="Tri"-->
-<!--        app:layout_constraintTop_toBottomOf="@id/tv_header"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintBottom_toTopOf="@id/rv_maintenance" />-->
-
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar_maintenance"
         android:layout_width="match_parent"

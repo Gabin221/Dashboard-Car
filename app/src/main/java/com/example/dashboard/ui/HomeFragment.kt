@@ -25,20 +25,14 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Navigation vers le Dashboard (Conduite)
-        // Note: On clique sur la CardView maintenant (id: card_drive)
         binding.cardDrive.setOnClickListener {
             findNavController().navigate(R.id.action_home_to_dashboard)
         }
 
-        // Navigation vers l'Entretien
-        // Note: On clique sur la CardView (id: card_maintenance)
         binding.cardMaintenance.setOnClickListener {
             findNavController().navigate(R.id.action_home_to_maintenance)
         }
 
-        // Ouverture Profil
-        // Note: On clique sur le layout interne du profil (id: btn_profile)
         binding.btnProfile.setOnClickListener {
             val dialog = ProfileDialogFragment()
             dialog.show(parentFragmentManager, "ProfileDialog")

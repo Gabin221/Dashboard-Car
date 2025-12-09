@@ -24,7 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "car_dash_db"
                 )
-                    .fallbackToDestructiveMigration() // Important pour éviter le crash au changement de version
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

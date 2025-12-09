@@ -30,7 +30,6 @@ class ProfileDialogFragment : DialogFragment() {
             val profile = viewModel.getCurrentProfile()
             if (profile != null) {
                 binding.etCarModel.setText(profile.carModel)
-                // CORRECTION ICI : Formatage pour éviter 110000.00000001
                 binding.etTotalKm.setText(String.format(Locale.US, "%.1f", profile.totalMileage))
                 binding.etLicensePlate.setText(profile.licensePlate)
                 binding.etHistovec.setText(profile.histovecLink)
@@ -39,7 +38,7 @@ class ProfileDialogFragment : DialogFragment() {
 
         binding.btnSaveProfile.setOnClickListener {
             val model = binding.etCarModel.text.toString()
-            val kmStr = binding.etTotalKm.text.toString().replace(",", ".") // Sécurité virgule
+            val kmStr = binding.etTotalKm.text.toString().replace(",", ".")
             val km = kmStr.toDoubleOrNull() ?: 0.0
             val fuel = binding.spFuel.selectedItem?.toString() ?: "Essence"
             val plate = binding.etLicensePlate.text.toString().uppercase()

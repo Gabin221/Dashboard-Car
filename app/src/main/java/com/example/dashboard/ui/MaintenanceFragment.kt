@@ -28,12 +28,9 @@ class MaintenanceFragment : Fragment() {
                 val jsonString = inputStream?.bufferedReader().use { reader -> reader?.readText() }
 
                 if (jsonString != null) {
-                    // LOGIQUE INTELLIGENTE ICI
                     if (viewModel.hasData()) {
-                        // Il y a déjà des trucs -> On demande
                         showImportConflictDialog(jsonString)
                     } else {
-                        // Vide -> On importe direct
                         viewModel.importBackupJson(jsonString, requireContext())
                         Toast.makeText(context, "Import réussi !", Toast.LENGTH_SHORT).show()
                     }
@@ -44,7 +41,6 @@ class MaintenanceFragment : Fragment() {
         }
     }
 
-    // Permet de créer un fichier (Sauvegarder sous...)
     private val saveReportLauncherHtml = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/html")) { uri ->
         uri?.let { destinationUri ->
             lifecycleScope.launch {
@@ -52,12 +48,11 @@ class MaintenanceFragment : Fragment() {
                     val htmlContent = viewModel.generateHtmlReport()
 
                     requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
-                        // CORRECTION ICI : On force l'écriture en UTF-8
                         output.write(htmlContent.toByteArray(Charsets.UTF_8))
                     }
-                    android.widget.Toast.makeText(context, "Rapport enregistré !", android.widget.Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Rapport enregistré !", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(context, "Erreur: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Erreur: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -69,22 +64,20 @@ class MaintenanceFragment : Fragment() {
         uri?.let { destinationUri ->
             lifecycleScope.launch {
                 try {
-                    // 1. On demande le contenu au ViewModel (au format JSON cette fois)
                     val jsonContent = viewModel.generateJsonReport()
-                    // 2. On écrit dans le fichier choisi par l'utilisateur
                     requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
                         output.write(jsonContent.toByteArray())
                     }
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         context,
                         "Rapport JSON enregistré avec succès !",
-                        android.widget.Toast.LENGTH_LONG
+                        Toast.LENGTH_LONG
                     ).show()
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         context,
                         "Erreur sauvegarde: ${e.message}",
-                        android.widget.Toast.LENGTH_SHORT
+                        Toast.LENGTH_SHORT
                     ).show()
                 }
             }
@@ -94,7 +87,6 @@ class MaintenanceFragment : Fragment() {
 
     private val binding get() = _binding!!
 
-    // On lie le ViewModel
     private val viewModel: MaintenanceViewModel by viewModels()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -102,11 +94,9 @@ class MaintenanceFragment : Fragment() {
         return binding.root
     }
 
-    // Dans onViewCreated
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 1. Setup de la liste et du clic
         val adapter = MaintenanceAdapter { selectedState ->
             showMaintenanceDialog(selectedState.item)
         }
@@ -114,56 +104,19 @@ class MaintenanceFragment : Fragment() {
         binding.rvMaintenance.adapter = adapter
         binding.rvMaintenance.layoutManager = LinearLayoutManager(context)
 
-        // 2. IMPORTANT : C'est ICI qu'on écoute le ViewModel
-        // Si ce bloc manque, la liste reste vide et la variable est "Never Used"
         lifecycleScope.launch {
             viewModel.maintenanceListState.collect { list ->
-                // Dès que la BDD change, ce code s'exécute et met à jour l'écran
                 adapter.submitList(list)
             }
         }
 
-        // 3. Bouton Ajouter
         binding.fabAdd.setOnClickListener {
             showMaintenanceDialog(null)
         }
 
-//        // 4. Bouton Export
-//        binding.fabExportHtml.setOnClickListener {
-//            saveReportLauncherHtml.launch("Rapport_Entretien_206.html")
-//        }
-//
-//        // 4. Bouton Export
-//        binding.fabExportJson.setOnClickListener {
-//            saveReportLauncherJson.launch("data.json")
-//        }
-//
-//        binding.fabImport.setOnClickListener {
-//            openFileLauncher.launch(arrayOf("*/*"))
-//        }
-
-//        binding.tri.setOnClickListener {
-//            val options = arrayOf("Urgence (Plus pressé en haut)", "Urgence (Moins pressé en haut)", "Nom (A-Z)", "Nom (Z-A)")
-//
-//            AlertDialog.Builder(requireContext())
-//                .setTitle("Trier par...")
-//                .setItems(options) { _, which ->
-//                    val sort = when (which) {
-//                        0 -> MaintenanceViewModel.SortOrder.URGENCY_ASC
-//                        1 -> MaintenanceViewModel.SortOrder.URGENCY_DESC
-//                        2 -> MaintenanceViewModel.SortOrder.NAME_ASC
-//                        3 -> MaintenanceViewModel.SortOrder.NAME_DESC
-//                        else -> MaintenanceViewModel.SortOrder.URGENCY_ASC
-//                    }
-//                    viewModel.setSortOrder(sort)
-//                }
-//                .show()
-//        }
-
         binding.toolbarMaintenance.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_sort -> {
-                    // Copie ici ton code de la modale de tri
                     showSortDialog()
                     true
                 }
@@ -180,7 +133,6 @@ class MaintenanceFragment : Fragment() {
                     true
                 }
                 R.id.action_delete_all -> {
-                    // Copie ton code de suppression ici ou appelle une fonction
                     showDeleteAllConfirmation()
                     true
                 }
@@ -223,14 +175,10 @@ class MaintenanceFragment : Fragment() {
                 Toast.makeText(context, "Données ajoutées !", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Remplacer") { _, _ ->
-                // On vide d'abord, puis on importe
                 viewModel.deleteAllMaintenanceData()
-                // On laisse un petit délai ou on enchaîne (dans le VM ce serait mieux, mais ici ça passe)
-                // Idéalement, deleteAllMaintenanceData devrait être 'suspend' et appelé dans une coroutine ici
-                // Pour faire simple et sûr :
                 lifecycleScope.launch {
                     viewModel.deleteAllMaintenanceData()
-                    kotlinx.coroutines.delay(200) // Petit temps pour laisser la BDD respirer
+                    kotlinx.coroutines.delay(200)
                     viewModel.importBackupJson(jsonString, requireContext())
                     Toast.makeText(context, "Base remplacée !", Toast.LENGTH_SHORT).show()
                 }
@@ -239,7 +187,6 @@ class MaintenanceFragment : Fragment() {
             .show()
     }
 
-    // Fonction unifiée pour Créer OU Modifier
     private fun showMaintenanceDialog(itemToEdit: com.example.dashboard.data.MaintenanceItem?) {
         val context = requireContext()
         val layout = LinearLayout(context).apply {
@@ -268,7 +215,6 @@ class MaintenanceFragment : Fragment() {
 
         val title = if (itemToEdit == null) "Nouvel Entretien" else "Modifier Entretien"
 
-        // 1. Define the builder variable here
         val builder = AlertDialog.Builder(context)
             .setTitle(title)
             .setView(layout)
@@ -278,35 +224,31 @@ class MaintenanceFragment : Fragment() {
                 val lastKmStr = inputLastKm.text.toString().trim()
 
                 if (name.isEmpty()) {
-                    android.widget.Toast.makeText(context, "Il faut un nom !", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Il faut un nom !", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
                 val interval = intervalStr.toIntOrNull() ?: 0
                 if (interval <= 0) {
-                    android.widget.Toast.makeText(context, "L'intervalle doit être supérieur à 0", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "L'intervalle doit être supérieur à 0", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
 
                 val lastKm = lastKmStr.toDoubleOrNull() ?: 0.0
 
                 val id = itemToEdit?.id ?: 0
-                // ... tes validations ...
-                // Ajoute un champ pour les mois dans ta modale, ou mets 0 par défaut en attendant
                 val months = 0
-                viewModel.saveItem(id, name, interval, months, lastKm) // Appel corrigé avec le paramètre mois
+                viewModel.saveItem(id, name, interval, months, lastKm)
             }
             .setNegativeButton("Annuler", null)
 
-        // 2. Add the Delete button logic BEFORE showing the dialog
         if (itemToEdit != null) {
             builder.setNeutralButton("Supprimer") { _, _ ->
                 viewModel.deleteItem(itemToEdit)
-                android.widget.Toast.makeText(context, "Supprimé !", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Supprimé !", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // 3. Finally, show the dialog
         builder.show()
     }
 
