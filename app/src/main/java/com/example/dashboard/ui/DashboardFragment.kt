@@ -51,6 +51,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     private lateinit var fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient
     private var locationCallback: com.google.android.gms.location.LocationCallback? = null
     private var isTrackingMode = true
+
+    private var routeAverageSpeedMs: Float = 13.8f
     private val profileViewModel: ProfileViewModel by viewModels()
     private var lastLocation: Location? = null
     private val savedAddressViewModel: SavedAddressViewModel by viewModels()
@@ -124,12 +126,15 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch { ObdManager.currentData2.collect { binding.tvData2.text = it.toString() } }
 
         binding.btnSaveCurrent.setOnClickListener {
-            val lastLocation = map?.myLocation
-            if (lastLocation == null) {
-                Toast.makeText(context, "Position GPS introuvable. Activez le suivi.", Toast.LENGTH_SHORT).show()
+            if (currentDestination == null) {
+                Toast.makeText(context, "Aucune destination sélectionnée.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            showSaveLocationDialog(lastLocation.latitude, lastLocation.longitude)
+
+            showSaveLocationDialog(
+                currentDestination!!.latitude,
+                currentDestination!!.longitude
+            )
         }
 
         binding.btnSearch.setOnClickListener {
@@ -156,6 +161,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         lifecycleScope.launch {
             savedAddressViewModel.savedAddresses.collect { savedList ->
                 currentFavoritesList = savedList
+                Toast.makeText(requireContext(), "Favoris (${savedList.size})", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -173,12 +179,11 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         }
 
         val names = currentFavoritesList.map { it.name }.toTypedArray()
-
         val listView = android.widget.ListView(requireContext())
         val adapter = android.widget.ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, names)
         listView.adapter = adapter
 
-        val dialog = AlertDialog.Builder(requireContext())
+        val dialog = android.app.AlertDialog.Builder(requireContext())
             .setTitle("Mes Destinations")
             .setView(listView)
             .setNegativeButton("Fermer", null)
@@ -187,27 +192,43 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedFav = currentFavoritesList[position]
 
-            binding.etSearch.setText(selectedFav.name)
-            val destCoords = "${selectedFav.latitude},${selectedFav.longitude}"
-            startNavigationTo(destCoords)
+            val lat = selectedFav.latitude
+            val lng = selectedFav.longitude
 
+            Toast.makeText(context, "Données : $lat / $lng", Toast.LENGTH_LONG).show()
+
+            if (lat == 0.0 && lng == 0.0) {
+                Toast.makeText(context, "Erreur : Coordonnées vides !", Toast.LENGTH_SHORT).show()
+                return@setOnItemClickListener
+            }
+
+            binding.etSearch.setText(selectedFav.name)
+
+            val destCoords = String.format(Locale.US, "%.6f,%.6f", lat, lng)
+
+            startNavigationTo(destCoords)
             dialog.dismiss()
         }
 
         listView.setOnItemLongClickListener { _, _, position, _ ->
             val selectedFav = currentFavoritesList[position]
-
             val options = arrayOf("Modifier le nom", "Supprimer")
-            AlertDialog.Builder(requireContext())
+
+            android.app.AlertDialog.Builder(requireContext())
                 .setTitle("Gérer '${selectedFav.name}'")
                 .setItems(options) { _, which ->
                     when (which) {
-                        0 -> showEditFavoriteDialog(selectedFav)
-                        1 -> deleteFavoriteConfirm(selectedFav)
+                        0 -> {
+                            showEditFavoriteDialog(selectedFav)
+                            dialog.dismiss()
+                        }
+                        1 -> {
+                            deleteFavoriteConfirm(selectedFav)
+                            dialog.dismiss()
+                        }
                     }
                 }
                 .show()
-
             true
         }
 
@@ -243,7 +264,8 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
 
     private fun showSaveLocationDialog(lat: Double, lon: Double) {
         val input = EditText(requireContext())
-        input.setText("Position Sauvée ${SimpleDateFormat("HH:mm").format(Date())}")
+        // input.setText("Position Sauvée ${SimpleDateFormat("HH:mm").format(Date())}")
+        input.setText("Position Sauvée: ${lat} et ${lon}")
 
         android.app.AlertDialog.Builder(requireContext())
             .setTitle("Nommer le Favori")
@@ -386,15 +408,13 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             destLoc.longitude = currentDestination!!.longitude
 
             val distanceMeters = currentLocation.distanceTo(destLoc)
-
             val distKm = distanceMeters / 1000.0
             binding.tvTripDistance.text = String.format("%.1f km", distKm)
 
-            val speed = if (currentLocation.hasSpeed() && currentLocation.speed > 2) currentLocation.speed else 13.8f
-            val timeSeconds = distanceMeters / speed
-            val minutes = (timeSeconds / 60).toInt()
+            val timeSeconds = distanceMeters / routeAverageSpeedMs
 
-            if (minutes > 60) {
+            val minutes = (timeSeconds / 60).toInt()
+            if (minutes >= 60) {
                 val h = minutes / 60
                 val m = minutes % 60
                 binding.tvTripTime.text = "${h}h ${m}min"
@@ -418,6 +438,13 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun startNavigationTo(destination: String) {
+        val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null }
+
+        if (currentLoc == null) {
+            Toast.makeText(context, "Attente du signal GPS... Réessayez dans un instant.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         currentDestinationCoords = destination
 
         if (!isNavigationActive) {
@@ -425,40 +452,65 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             navigationHandler.post(navigationRunnable)
             binding.cardTripInfo.visibility = View.VISIBLE
         }
-        val currentLoc = try { map?.myLocation } catch (e: SecurityException) { null } ?: return
-        val origin = "${currentLoc.latitude},${currentLoc.longitude}"
+
+        val origin = String.format(Locale.US, "%.6f,%.6f", currentLoc.latitude, currentLoc.longitude)
         val apiKey = getString(R.string.google_maps_key)
         val url = "https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&mode=driving&key=$apiKey"
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val request = Request.Builder().url(url).build()
                 val response = client.newCall(request).execute()
                 val jsonData = response.body?.string()
+
                 if (jsonData != null) {
                     val jsonObject = JSONObject(jsonData)
+                    if (jsonObject.optString("status") != "OK") {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Erreur Google: ${jsonObject.optString("status")}", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
+
                     val routes = jsonObject.getJSONArray("routes")
                     if (routes.length() > 0) {
                         val route = routes.getJSONObject(0)
                         val points = route.getJSONObject("overview_polyline").getString("points")
                         val decodedPath = PolylineDecoder.decode(points)
+
+                        // Récupération infos
                         val legs = route.getJSONArray("legs")
                         val leg = legs.getJSONObject(0)
-                        val distanceText = leg.getJSONObject("distance").getString("text")
-                        val durationText = leg.getJSONObject("duration").getString("text")
-                        val durationSeconds = leg.getJSONObject("duration").getLong("value")
-                        val endText = SimpleDateFormat("HH'h'mm", Locale.getDefault()).format(Date(System.currentTimeMillis() + (durationSeconds * 1000L)))
+                        val totalDistMeters = leg.getJSONObject("distance").getInt("value")
+                        val totalDurationSec = leg.getJSONObject("duration").getInt("value")
+
+                        if (totalDurationSec > 0) {
+                            routeAverageSpeedMs = totalDistMeters.toFloat() / totalDurationSec.toFloat()
+                        }
+
+                        val arrivalTime = System.currentTimeMillis() + (totalDurationSec * 1000L)
+                        val endText = SimpleDateFormat("HH'h'mm", Locale.getDefault()).format(Date(arrivalTime))
 
                         withContext(Dispatchers.Main) {
                             drawRouteOnMap(decodedPath)
                             binding.cardTripInfo.visibility = View.VISIBLE
-                            binding.tvTripDistance.text = distanceText
-                            binding.tvTripTime.text = durationText
+                            binding.tvTripDistance.text = String.format("%.1f km", totalDistMeters / 1000.0)
+                            val h = totalDurationSec / 3600
+                            val m = (totalDurationSec % 3600) / 60
+                            binding.tvTripTime.text = if (h > 0) "${h}h ${m}min" else "${m} min"
                             binding.tvTripEnd.text = endText
                         }
-                        binding.searchContainer.visibility = View.GONE
+                        withContext(Dispatchers.Main) {
+                            binding.searchContainer.visibility = View.GONE
+                        }
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Erreur Trajet: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 

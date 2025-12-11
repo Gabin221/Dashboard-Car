@@ -32,6 +32,30 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         checkAndRequestPermissions()
+
+        val navTarget = intent.getStringExtra("NAV_TARGET")
+
+        // On attend un peu que le NavHost soit prêt
+        binding.root.post {
+            val navController = androidx.navigation.Navigation.findNavController(this, R.id.nav_host_fragment)
+
+            if (navTarget == "dashboard") {
+                navController.navigate(R.id.dashboardFragment) // Utilise l'ID de ton graphe de nav
+            } else if (navTarget == "maintenance") {
+                navController.navigate(R.id.maintenanceFragment)
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        val navTarget = intent?.getStringExtra("NAV_TARGET")
+        val navController = androidx.navigation.Navigation.findNavController(this, R.id.nav_host_fragment)
+        if (navTarget == "dashboard") {
+            navController.navigate(R.id.dashboardFragment)
+        } else if (navTarget == "maintenance") {
+            navController.navigate(R.id.maintenanceFragment)
+        }
     }
 
     private fun checkAndRequestPermissions() {

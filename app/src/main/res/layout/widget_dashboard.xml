@@ -1,0 +1,25 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="@drawable/bg_rounded_white_80"
+    android:backgroundTint="#222222">
+    <Button
+        android:id="@+id/widget_btn_drive"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="🚗"
+        android:textSize="12sp"
+        android:backgroundTint="#1B5E20"/>
+
+    <Button
+        android:id="@+id/widget_btn_maint"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="🔧"
+        android:textSize="12sp"
+        android:backgroundTint="#E65100"/>
+</LinearLayout>
