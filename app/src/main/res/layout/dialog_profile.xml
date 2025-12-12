@@ -51,18 +51,6 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Immatriculation"
-        android:layout_marginTop="12dp"/>
-    <EditText
-        android:id="@+id/et_license_plate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="AA-123-BB"
-        android:inputType="textCapCharacters"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         android:text="Lien HistoVec (Facultatif)"
         android:layout_marginTop="12dp"/>
     <EditText

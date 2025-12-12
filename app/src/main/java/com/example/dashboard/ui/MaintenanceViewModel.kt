@@ -136,7 +136,6 @@ class MaintenanceViewModel(application: Application) : AndroidViewModel(applicat
         if (profile != null) {
             sb.append("<div style='background:#ecf0f1; padding:15px; border-radius:5px; border-left: 5px solid #3498db; margin-bottom:20px;'>")
             sb.append("<h2>${profile.carModel}</h2>")
-            sb.append("<p><b>Immatriculation :</b> ${profile.licensePlate}</p>")
             sb.append("<p><b>Kilométrage actuel :</b> ${profile.totalMileage.toInt()} km</p>")
             sb.append("<p><b>Carburant :</b> ${profile.fuelType}</p>")
 

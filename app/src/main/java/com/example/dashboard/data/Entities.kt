@@ -10,7 +10,6 @@ data class CarProfile(
     val totalMileage: Double = 0.0,
     val carModel: String = "Peugeot 206+",
     val fuelType: String = "Essence",
-    val licensePlate: String = "",
     val histovecLink: String = ""
 )
 

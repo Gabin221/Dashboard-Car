@@ -31,7 +31,6 @@ class ProfileDialogFragment : DialogFragment() {
             if (profile != null) {
                 binding.etCarModel.setText(profile.carModel)
                 binding.etTotalKm.setText(String.format(Locale.US, "%.1f", profile.totalMileage))
-                binding.etLicensePlate.setText(profile.licensePlate)
                 binding.etHistovec.setText(profile.histovecLink)
             }
         }
@@ -41,10 +40,9 @@ class ProfileDialogFragment : DialogFragment() {
             val kmStr = binding.etTotalKm.text.toString().replace(",", ".")
             val km = kmStr.toDoubleOrNull() ?: 0.0
             val fuel = binding.spFuel.selectedItem?.toString() ?: "Essence"
-            val plate = binding.etLicensePlate.text.toString().uppercase()
             val link = binding.etHistovec.text.toString()
 
-            viewModel.saveProfile(model, km, fuel, plate, link)
+            viewModel.saveProfile(model, km, fuel, link)
             Toast.makeText(context, "Profil sauvegardé !", Toast.LENGTH_SHORT).show()
             dismiss()
         }
