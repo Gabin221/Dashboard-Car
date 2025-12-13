@@ -37,6 +37,8 @@ import androidx.appcompat.app.AlertDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.view.ViewTreeObserver
+import android.view.animation.DecelerateInterpolator
 
 class DashboardFragment : Fragment(), OnMapReadyCallback {
     private var _binding: FragmentDashboardBinding? = null
@@ -137,25 +139,76 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             )
         }
 
+//        binding.bottomSheetCard.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+//            override fun onGlobalLayout() {
+//                // Récupérer la hauteur de bottom_sheet_card
+//                val bottomSheetHeight = binding.bottomSheetCard.height
+//
+//                // Récupérer la hauteur du contenu de bottom_sheet_card
+//                val bottomSheetContent = binding.bottomSheetCard.height // Supposons que le contenu est le premier enfant
+//                val contentHeight = binding.searchCard.height
+//
+//                // Calculer la hauteur totale pour search_card
+//                val totalHeight = bottomSheetHeight + contentHeight
+//
+//                // Appliquer la hauteur à search_card
+//                binding.searchCard.layoutParams.height = totalHeight
+//                binding.searchCard.requestLayout() // Forcer le recalcul du layout
+//
+//                // Supprimer l'écouteur pour éviter les appels multiples
+//                binding.bottomSheetCard.viewTreeObserver.removeOnGlobalLayoutListener(this)
+//            }
+//        })
+
         binding.btnSearch.setOnClickListener {
-            if (binding.searchContainer.visibility == View.GONE) {
-                binding.searchContainer.alpha = 0f
-                binding.searchContainer.visibility = View.VISIBLE
-                binding.searchContainer.animate().alpha(1f).setDuration(300).start()
+            val blackCard = binding.searchCard
+            val whiteCard = binding.bottomSheetCard
+
+            if (blackCard.visibility != View.VISIBLE) {
+
+                // Forcer le calcul des tailles
+                blackCard.visibility = View.VISIBLE
+                blackCard.alpha = 0f
+
+                blackCard.post {
+
+                    val offset = whiteCard.height.toFloat()
+
+                    // On démarre SOUS la white card
+                    blackCard.translationY = offset
+
+                    blackCard.animate()
+                        .translationY(0f)
+                        .alpha(1f)
+                        .setDuration(250)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+                }
+
             } else {
-                binding.searchContainer.animate().alpha(0f).setDuration(300).withEndAction {
-                    binding.searchContainer.visibility = View.GONE
-                }.start()
+
+                val offset = whiteCard.height.toFloat()
+
+                blackCard.animate()
+                    .translationY(offset)
+                    .alpha(0f)
+                    .setDuration(200)
+                    .withEndAction {
+                        blackCard.visibility = View.INVISIBLE
+                    }
+                    .start()
             }
         }
 
         binding.btnSearchGo.setOnClickListener {
+            binding.searchCard.visibility = View.INVISIBLE
             val address = binding.etSearch.text.toString()
             if (address.isNotEmpty()) {
                 val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 imm.hideSoftInputFromWindow(view.windowToken, 0)
                 searchAndNavigate(address)
             }
+            binding.etSearch.text = null
         }
 
         lifecycleScope.launch {
@@ -168,6 +221,25 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
         binding.btnOpenFavorites.setOnClickListener {
             showFavoritesListDialog()
         }
+
+        // Animation d'entrée de la carte du bas (Slide Up)
+        binding.bottomSheetCard.translationY = 500f // On la descend
+        binding.bottomSheetCard.alpha = 0f // On la rend invisible
+
+        binding.bottomSheetCard.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(600)
+            .setStartDelay(200) // Petit délai pour laisser la map charger
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
+
+//        binding.topBarCard.translationY = -200f
+//        binding.topBarCard.animate()
+//            .translationY(0f)
+//            .setDuration(500)
+//            .setInterpolator(android.view.animation.DecelerateInterpolator())
+//            .start()
 
         startObdConnection()
     }
@@ -353,7 +425,7 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
             false
         }
 
-        map?.setPadding(0, 500, 0, 0)
+        map?.setPadding(0, 250, 0, 0)
 
         startLocationUpdates()
     }
@@ -500,9 +572,9 @@ class DashboardFragment : Fragment(), OnMapReadyCallback {
                             binding.tvTripTime.text = if (h > 0) "${h}h ${m}min" else "${m} min"
                             binding.tvTripEnd.text = endText
                         }
-                        withContext(Dispatchers.Main) {
-                            binding.searchContainer.visibility = View.GONE
-                        }
+//                        withContext(Dispatchers.Main) {
+//                            binding.searchCard.visibility = View.GONE
+//                        }
                     }
                 }
             } catch (e: Exception) {

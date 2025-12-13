@@ -33,7 +33,7 @@ class HomeFragment : Fragment() {
             findNavController().navigate(R.id.action_home_to_maintenance)
         }
 
-        binding.btnProfile.setOnClickListener {
+        binding.cardProfile.setOnClickListener {
             val dialog = ProfileDialogFragment()
             dialog.show(parentFragmentManager, "ProfileDialog")
         }

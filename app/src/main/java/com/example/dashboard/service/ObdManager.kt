@@ -76,7 +76,7 @@ object ObdManager {
                     val fakeRpm = (800..3000).random()
                     val fakeSpeed = (0..130).random()
                     val fakeData1 = (0..10).random()
-                    val fakeData2 = (0..700).random()
+                    val fakeData2 = (0..10).random()
 
                     _currentRpm.emit(fakeRpm)
                     _currentSpeed.emit(fakeSpeed)
