@@ -37,7 +37,29 @@ class HomeFragment : Fragment() {
             val dialog = ProfileDialogFragment()
             dialog.show(parentFragmentManager, "ProfileDialog")
         }
+
+        animateHomeCards()
     }
+
+    private fun animateHomeCards() {
+        val cards = listOf(binding.cardDrive, binding.cardMaintenance)
+
+        cards.forEachIndexed { index, card ->
+            card.apply {
+                alpha = 0f
+                translationY = 60f
+
+                animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setStartDelay((index * 120).toLong())
+                    .setDuration(400)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+        }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()
