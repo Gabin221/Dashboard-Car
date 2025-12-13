@@ -1,9 +1,12 @@
 package com.example.dashboard.ui
 
+import android.R
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.viewModels
@@ -32,6 +35,10 @@ class ProfileDialogFragment : DialogFragment() {
                 binding.etCarModel.setText(profile.carModel)
                 binding.etTotalKm.setText(String.format(Locale.US, "%.1f", profile.totalMileage))
                 binding.etHistovec.setText(profile.histovecLink)
+
+                if (profile.fuelType.isNotBlank()) {
+                    binding.spFuel.setText(profile.fuelType, false)
+                }
             }
         }
 
@@ -39,13 +46,33 @@ class ProfileDialogFragment : DialogFragment() {
             val model = binding.etCarModel.text.toString()
             val kmStr = binding.etTotalKm.text.toString().replace(",", ".")
             val km = kmStr.toDoubleOrNull() ?: 0.0
-            val fuel = binding.spFuel.selectedItem?.toString() ?: "Essence"
+            val fuel = binding.spFuel.text.toString()
             val link = binding.etHistovec.text.toString()
 
             viewModel.saveProfile(model, km, fuel, link)
             Toast.makeText(context, "Profil sauvegardé !", Toast.LENGTH_SHORT).show()
             dismiss()
         }
+
+        dialog?.window?.apply {
+            setWindowAnimations(0)
+        }
+
+        val fuels = listOf(
+            "Essence",
+            "Diesel",
+            "GPL",
+            "Électrique",
+            "Hybride"
+        )
+
+        val adapter = ArrayAdapter(
+            requireContext(),
+            R.layout.simple_list_item_1,
+            fuels
+        )
+
+        (binding.spFuel as AutoCompleteTextView).setAdapter(adapter)
     }
 
     override fun onStart() {

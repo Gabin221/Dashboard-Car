@@ -2,6 +2,7 @@ package com.example.dashboard.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
@@ -36,6 +37,14 @@ class HomeFragment : Fragment() {
         binding.cardProfile.setOnClickListener {
             val dialog = ProfileDialogFragment()
             dialog.show(parentFragmentManager, "ProfileDialog")
+        }
+
+        binding.cardProfile.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> v.scaleX = 0.97f
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.scaleX = 1f
+            }
+            false
         }
 
         animateHomeCards()
